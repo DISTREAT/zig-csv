@@ -53,10 +53,10 @@ defer allocator.free(exported);
 
 ```
 
-_More examples can be found in `src/tests.zig`.
+_More examples can be found in `src/tests.zig`._
 
 ## Docs
 
 The documentation is created in the directory `docs/` when running `zig build`.
 
-[Official Documentation](https://TODO)
+[Documentation](https://distreat.github.io/zig-csv/)
