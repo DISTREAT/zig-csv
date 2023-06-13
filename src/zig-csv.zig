@@ -41,6 +41,8 @@ pub const TableError = error{
     OutOfMemory,
     /// The requested row was not found
     RowNotFound,
+    /// The requested value contains a delimiter or terminator character
+    IllegalCharacter,
 };
 
 /// A structure for parsing and manipulating CSV data
@@ -198,6 +200,10 @@ pub const Table = struct {
 
     /// Insert a new and empty column to all rows and return its index
     pub fn insertEmptyColumn(self: *Table, column_key: []const u8) TableError!usize {
+        // check whether delimiter or terminator is in column_key
+        if (std.mem.count(u8, column_key, self.settings.delimiter) != 0) return TableError.IllegalCharacter;
+        if (std.mem.count(u8, column_key, self.settings.terminator) != 0) return TableError.IllegalCharacter;
+
         // append new column to header
         try self.header.append(column_key);
 
@@ -214,6 +220,8 @@ pub const Table = struct {
     /// Replace a value by a given new value, row index, and column index
     pub fn replaceValue(self: *Table, row_index: usize, column_index: usize, value: []const u8) TableError!void {
         if (row_index >= self.body.items.len) return TableError.IndexNotFound;
+        if (std.mem.count(u8, value, self.settings.delimiter) != 0) return TableError.IllegalCharacter;
+        if (std.mem.count(u8, value, self.settings.terminator) != 0) return TableError.IllegalCharacter;
 
         var row_values = ArrayList([]const u8).init(self.allocator);
         defer row_values.deinit();

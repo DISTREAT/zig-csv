@@ -212,6 +212,18 @@ test "Replace values using Table.replaceValues" {
     try expect(std.mem.eql(u8, exported, expected_csv));
 }
 
+test "Replace values containing illegal characters using Table.replaceValues" {
+    var table = csv.Table.init(allocator, csv.Settings{
+        .delimiter = ",",
+        .terminator = "\n",
+    });
+    defer table.deinit();
+    try table.parse(csv_data_2);
+
+    try expect(table.replaceValue(0, 0, ",2") == csv.TableError.IllegalCharacter);
+    try expect(table.replaceValue(0, 0, "2\n") == csv.TableError.IllegalCharacter);
+}
+
 test "Append row using Table.insertEmptyRow" {
     var table = csv.Table.init(allocator, csv.Settings.default());
     defer table.deinit();
@@ -265,6 +277,18 @@ test "Append column using Table.insertEmptyColumn" {
     const exported = try table.exportCSV(allocator);
     defer allocator.free(exported);
     try expect(std.mem.eql(u8, exported, expected_csv));
+}
+
+test "Append column containing illegal characters using Table.insertEmptyColumn" {
+    var table = csv.Table.init(allocator, csv.Settings{
+        .delimiter = ",",
+        .terminator = "\n",
+    });
+    defer table.deinit();
+    try table.parse(csv_data_2);
+
+    try expect(table.insertEmptyColumn("example, word") == csv.TableError.IllegalCharacter);
+    try expect(table.insertEmptyColumn("example\n word") == csv.TableError.IllegalCharacter);
 }
 
 test "Append column using Table.insertEmptyColumn and Table.replaceValue" {
