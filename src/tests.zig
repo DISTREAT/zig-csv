@@ -97,7 +97,7 @@ test "Find indexes of columns using Table.findColumnIndexesByKey" {
     defer table.deinit();
     try table.parse(csv_data_1);
 
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
     const arena_allocator = arena.allocator();
 
@@ -124,7 +124,7 @@ test "Find indexes of rows using Table.findRowIndexesByValue" {
     defer table.deinit();
     try table.parse(csv_data_1);
 
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
     const arena_allocator = arena.allocator();
 
@@ -148,7 +148,7 @@ test "Get column by index using Table.getColumnByIndex" {
     defer table.deinit();
     try table.parse(csv_data_2);
 
-    var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
+    var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
     const arena_allocator = arena.allocator();
 
