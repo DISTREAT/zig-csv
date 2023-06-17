@@ -100,8 +100,8 @@ pub const Table = struct {
         self.header.clearAndFree();
         self.body.clearAndFree();
 
-        while (header.next()) |key| try self.header.append(key);
-        while (body.next()) |row| try self.body.append(row);
+        while (header.next()) |key| if (key.len > 0) try self.header.append(key);
+        while (body.next()) |row| if (row.len > 0) try self.body.append(row);
     }
 
     /// Append row of CSV data to the struct Table
@@ -273,8 +273,10 @@ pub const Table = struct {
 
         // append rows
         for (self.body.items) |row| {
-            try csv.appendSlice(self.settings.terminator);
-            try csv.appendSlice(row);
+            if (row.len > 0) {
+                try csv.appendSlice(self.settings.terminator);
+                try csv.appendSlice(row);
+            }
         }
 
         return csv.items;
