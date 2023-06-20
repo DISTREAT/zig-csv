@@ -73,7 +73,7 @@ test "Accessing struct data via Table.getAllColumns and Table.getAllRows" {
 
     // compare columns and csv_data_2_keys
     try expect(columns.len == csv_data_2_keys.len);
-    for (columns, 0..) |column, column_index| {
+    for (columns) |column, column_index| {
         try expect(std.mem.eql(u8, column, csv_data_2_keys[column_index]));
     }
 
@@ -350,7 +350,7 @@ test "Initializing Table from empty and ArenaAllocator, recreating test data" {
     const column_index_id = try table.insertEmptyColumn("id");
     const column_index_letter = try table.insertEmptyColumn("letter");
 
-    for ([_][]const u8{ "a", "b" }, 0..) |row, row_index| {
+    for ([_][]const u8{ "a", "b" }) |row, row_index| {
         const targetRowByIndex_index = try table.insertEmptyRow();
         const row_id = try std.fmt.allocPrint(allocator, "{d}", .{row_index});
         defer allocator.free(row_id);

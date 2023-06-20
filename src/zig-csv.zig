@@ -134,7 +134,7 @@ pub const Table = struct {
     pub fn findColumnIndexesByKey(self: Table, allocator: Allocator, searched_key: []const u8) TableError![]usize {
         var column_indexes = ArrayList(usize).init(allocator);
 
-        for (self.header.items, 0..) |current_key, index| {
+        for (self.header.items) |current_key, index| {
             if (std.mem.eql(u8, current_key, searched_key)) {
                 try column_indexes.append(index);
             }
@@ -151,7 +151,7 @@ pub const Table = struct {
 
         if (column_index >= self.header.items.len) return TableError.IndexNotFound;
 
-        for (self.body.items, 0..) |row, row_index| {
+        for (self.body.items) |row, row_index| {
             const row_count = std.mem.count(u8, row, self.settings.delimiter) + 1;
             var row_values = std.mem.split(u8, row, self.settings.delimiter);
             if (column_index >= row_count) return TableError.MissingValue;
@@ -190,7 +190,10 @@ pub const Table = struct {
     pub fn insertEmptyRow(self: *Table) TableError!usize {
         // create empty row with expected amount of delimiter
         var new_row = ArrayList(u8).init(self.arena_allocator.allocator());
-        for (0..self.header.items.len - 1) |_| try new_row.appendSlice(self.settings.delimiter);
+        var i: usize = 0;
+        while (i < self.header.items.len - 1) : (i += 1) {
+            try new_row.appendSlice(self.settings.delimiter);
+        }
 
         // append row to body
         try self.body.append(new_row.items);
@@ -210,7 +213,7 @@ pub const Table = struct {
         // append new column to all rows
         const row_allocator = self.arena_allocator.allocator();
 
-        for (self.body.items, 0..) |row, row_index| {
+        for (self.body.items) |row, row_index| {
             self.body.items[row_index] = try std.fmt.allocPrint(row_allocator, "{s}{s}", .{ row, self.settings.delimiter });
         }
 
@@ -244,7 +247,7 @@ pub const Table = struct {
         // remove column from body
         const row_allocator = self.arena_allocator.allocator();
 
-        for (self.body.items, 0..) |row, row_index| {
+        for (self.body.items) |row, row_index| {
             var values = ArrayList([]const u8).init(self.allocator);
             defer values.deinit();
 

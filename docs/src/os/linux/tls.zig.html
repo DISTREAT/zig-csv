@@ -167,7 +167,7 @@
 </span>
 <span class="line" id="L32"><span class="tok-comment">// The structure of the TCB is not defined by the ABI so we reserve enough space</span>
 </span>
-<span class="line" id="L33"><span class="tok-comment">// for a single pointer as some architectures such as x86 and x86_64 need a</span>
+<span class="line" id="L33"><span class="tok-comment">// for a single pointer as some architectures such as i386 and x86_64 need a</span>
 </span>
 <span class="line" id="L34"><span class="tok-comment">// pointer to the TCB block itself at the address pointed by the tp.</span>
 </span>
@@ -196,8 +196,8 @@
 <span class="line" id="L48">};</span>
 <span class="line" id="L49"></span>
 <span class="line" id="L50"><span class="tok-kw">const</span> tls_variant = <span class="tok-kw">switch</span> (native_arch) {</span>
-<span class="line" id="L51">    .arm, .armeb, .thumb, .aarch64, .aarch64_be, .riscv32, .riscv64, .mips, .mipsel, .mips64, .mips64el, .powerpc, .powerpc64, .powerpc64le =&gt; TLSVariant.VariantI,</span>
-<span class="line" id="L52">    .x86_64, .x86, .sparc64 =&gt; TLSVariant.VariantII,</span>
+<span class="line" id="L51">    .arm, .armeb, .thumb, .aarch64, .aarch64_be, .riscv32, .riscv64, .mips, .mipsel, .powerpc, .powerpc64, .powerpc64le =&gt; TLSVariant.VariantI,</span>
+<span class="line" id="L52">    .x86_64, .<span class="tok-type">i386</span>, .sparc64 =&gt; TLSVariant.VariantII,</span>
 <span class="line" id="L53">    <span class="tok-kw">else</span> =&gt; <span class="tok-builtin">@compileError</span>(<span class="tok-str">&quot;undefined tls_variant for this architecture&quot;</span>),</span>
 <span class="line" id="L54">};</span>
 <span class="line" id="L55"></span>
@@ -217,7 +217,7 @@
 <span class="line" id="L65"><span class="tok-comment">// Controls if the TP points to the end of the TCB instead of its beginning</span>
 </span>
 <span class="line" id="L66"><span class="tok-kw">const</span> tls_tp_points_past_tcb = <span class="tok-kw">switch</span> (native_arch) {</span>
-<span class="line" id="L67">    .riscv32, .riscv64, .mips, .mipsel, .mips64, .mips64el, .powerpc, .powerpc64, .powerpc64le =&gt; <span class="tok-null">true</span>,</span>
+<span class="line" id="L67">    .riscv32, .riscv64, .mips, .mipsel, .powerpc, .powerpc64, .powerpc64le =&gt; <span class="tok-null">true</span>,</span>
 <span class="line" id="L68">    <span class="tok-kw">else</span> =&gt; <span class="tok-null">false</span>,</span>
 <span class="line" id="L69">};</span>
 <span class="line" id="L70"></span>
@@ -227,12 +227,12 @@
 </span>
 <span class="line" id="L73"></span>
 <span class="line" id="L74"><span class="tok-kw">const</span> tls_tp_offset = <span class="tok-kw">switch</span> (native_arch) {</span>
-<span class="line" id="L75">    .mips, .mipsel, .mips64, .mips64el, .powerpc, .powerpc64, .powerpc64le =&gt; <span class="tok-number">0x7000</span>,</span>
+<span class="line" id="L75">    .mips, .mipsel, .powerpc, .powerpc64, .powerpc64le =&gt; <span class="tok-number">0x7000</span>,</span>
 <span class="line" id="L76">    <span class="tok-kw">else</span> =&gt; <span class="tok-number">0</span>,</span>
 <span class="line" id="L77">};</span>
 <span class="line" id="L78"></span>
 <span class="line" id="L79"><span class="tok-kw">const</span> tls_dtv_offset = <span class="tok-kw">switch</span> (native_arch) {</span>
-<span class="line" id="L80">    .mips, .mipsel, .mips64, .mips64el, .powerpc, .powerpc64, .powerpc64le =&gt; <span class="tok-number">0x8000</span>,</span>
+<span class="line" id="L80">    .mips, .mipsel, .powerpc, .powerpc64, .powerpc64le =&gt; <span class="tok-number">0x8000</span>,</span>
 <span class="line" id="L81">    .riscv32, .riscv64 =&gt; <span class="tok-number">0x800</span>,</span>
 <span class="line" id="L82">    <span class="tok-kw">else</span> =&gt; <span class="tok-number">0</span>,</span>
 <span class="line" id="L83">};</span>
@@ -260,7 +260,7 @@
 <span class="line" id="L102">    dtv_offset: <span class="tok-type">usize</span>,</span>
 <span class="line" id="L103">    data_offset: <span class="tok-type">usize</span>,</span>
 <span class="line" id="L104">    data_size: <span class="tok-type">usize</span>,</span>
-<span class="line" id="L105">    <span class="tok-comment">// Only used on the x86 architecture</span>
+<span class="line" id="L105">    <span class="tok-comment">// Only used on the i386 architecture</span>
 </span>
 <span class="line" id="L106">    gdt_entry_number: <span class="tok-type">usize</span>,</span>
 <span class="line" id="L107">};</span>
@@ -269,7 +269,7 @@
 <span class="line" id="L110"></span>
 <span class="line" id="L111"><span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">setThreadPointer</span>(addr: <span class="tok-type">usize</span>) <span class="tok-type">void</span> {</span>
 <span class="line" id="L112">    <span class="tok-kw">switch</span> (native_arch) {</span>
-<span class="line" id="L113">        .x86 =&gt; {</span>
+<span class="line" id="L113">        .<span class="tok-type">i386</span> =&gt; {</span>
 <span class="line" id="L114">            <span class="tok-kw">var</span> user_desc = std.os.linux.user_desc{</span>
 <span class="line" id="L115">                .entry_number = tls_image.gdt_entry_number,</span>
 <span class="line" id="L116">                .base_addr = addr,</span>
@@ -320,7 +320,7 @@
 <span class="line" id="L156">                : [addr] <span class="tok-str">&quot;r&quot;</span> (addr),</span>
 <span class="line" id="L157">            );</span>
 <span class="line" id="L158">        },</span>
-<span class="line" id="L159">        .mips, .mipsel, .mips64, .mips64el =&gt; {</span>
+<span class="line" id="L159">        .mips, .mipsel =&gt; {</span>
 <span class="line" id="L160">            <span class="tok-kw">const</span> rc = std.os.linux.syscall1(.set_thread_area, addr);</span>
 <span class="line" id="L161">            assert(rc == <span class="tok-number">0</span>);</span>
 <span class="line" id="L162">        },</span>

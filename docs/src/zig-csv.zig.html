@@ -220,8 +220,8 @@
 <span class="line" id="L100">        self.header.clearAndFree();</span>
 <span class="line" id="L101">        self.body.clearAndFree();</span>
 <span class="line" id="L102"></span>
-<span class="line" id="L103">        <span class="tok-kw">while</span> (header.next()) |key| <span class="tok-kw">try</span> self.header.append(key);</span>
-<span class="line" id="L104">        <span class="tok-kw">while</span> (body.next()) |row| <span class="tok-kw">try</span> self.body.append(row);</span>
+<span class="line" id="L103">        <span class="tok-kw">while</span> (header.next()) |key| <span class="tok-kw">if</span> (key.len &gt; <span class="tok-number">0</span>) <span class="tok-kw">try</span> self.header.append(key);</span>
+<span class="line" id="L104">        <span class="tok-kw">while</span> (body.next()) |row| <span class="tok-kw">if</span> (row.len &gt; <span class="tok-number">0</span>) <span class="tok-kw">try</span> self.body.append(row);</span>
 <span class="line" id="L105">    }</span>
 <span class="line" id="L106"></span>
 <span class="line" id="L107">    <span class="tok-comment">/// Append row of CSV data to the struct Table</span></span>
@@ -256,7 +256,7 @@
 <span class="line" id="L134">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">findColumnIndexesByKey</span>(self: Table, allocator: Allocator, searched_key: []<span class="tok-kw">const</span> <span class="tok-type">u8</span>) TableError![]<span class="tok-type">usize</span> {</span>
 <span class="line" id="L135">        <span class="tok-kw">var</span> column_indexes = ArrayList(<span class="tok-type">usize</span>).init(allocator);</span>
 <span class="line" id="L136"></span>
-<span class="line" id="L137">        <span class="tok-kw">for</span> (self.header.items, <span class="tok-number">0</span>..) |current_key, index| {</span>
+<span class="line" id="L137">        <span class="tok-kw">for</span> (self.header.items) |current_key, index| {</span>
 <span class="line" id="L138">            <span class="tok-kw">if</span> (std.mem.eql(<span class="tok-type">u8</span>, current_key, searched_key)) {</span>
 <span class="line" id="L139">                <span class="tok-kw">try</span> column_indexes.append(index);</span>
 <span class="line" id="L140">            }</span>
@@ -273,7 +273,7 @@
 <span class="line" id="L151"></span>
 <span class="line" id="L152">        <span class="tok-kw">if</span> (column_index &gt;= self.header.items.len) <span class="tok-kw">return</span> TableError.IndexNotFound;</span>
 <span class="line" id="L153"></span>
-<span class="line" id="L154">        <span class="tok-kw">for</span> (self.body.items, <span class="tok-number">0</span>..) |row, row_index| {</span>
+<span class="line" id="L154">        <span class="tok-kw">for</span> (self.body.items) |row, row_index| {</span>
 <span class="line" id="L155">            <span class="tok-kw">const</span> row_count = std.mem.count(<span class="tok-type">u8</span>, row, self.settings.delimiter) + <span class="tok-number">1</span>;</span>
 <span class="line" id="L156">            <span class="tok-kw">var</span> row_values = std.mem.split(<span class="tok-type">u8</span>, row, self.settings.delimiter);</span>
 <span class="line" id="L157">            <span class="tok-kw">if</span> (column_index &gt;= row_count) <span class="tok-kw">return</span> TableError.MissingValue;</span>
@@ -313,104 +313,109 @@
 <span class="line" id="L191">        <span class="tok-comment">// create empty row with expected amount of delimiter</span>
 </span>
 <span class="line" id="L192">        <span class="tok-kw">var</span> new_row = ArrayList(<span class="tok-type">u8</span>).init(self.arena_allocator.allocator());</span>
-<span class="line" id="L193">        <span class="tok-kw">for</span> (<span class="tok-number">0</span>..self.header.items.len - <span class="tok-number">1</span>) |_| <span class="tok-kw">try</span> new_row.appendSlice(self.settings.delimiter);</span>
-<span class="line" id="L194"></span>
-<span class="line" id="L195">        <span class="tok-comment">// append row to body</span>
-</span>
-<span class="line" id="L196">        <span class="tok-kw">try</span> self.body.append(new_row.items);</span>
+<span class="line" id="L193">        <span class="tok-kw">var</span> i: <span class="tok-type">usize</span> = <span class="tok-number">0</span>;</span>
+<span class="line" id="L194">        <span class="tok-kw">while</span> (i &lt; self.header.items.len - <span class="tok-number">1</span>) : (i += <span class="tok-number">1</span>) {</span>
+<span class="line" id="L195">            <span class="tok-kw">try</span> new_row.appendSlice(self.settings.delimiter);</span>
+<span class="line" id="L196">        }</span>
 <span class="line" id="L197"></span>
-<span class="line" id="L198">        <span class="tok-kw">return</span> self.body.items.len - <span class="tok-number">1</span>;</span>
-<span class="line" id="L199">    }</span>
+<span class="line" id="L198">        <span class="tok-comment">// append row to body</span>
+</span>
+<span class="line" id="L199">        <span class="tok-kw">try</span> self.body.append(new_row.items);</span>
 <span class="line" id="L200"></span>
-<span class="line" id="L201">    <span class="tok-comment">/// Insert a new and empty column to all rows and return its index</span></span>
-<span class="line" id="L202">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">insertEmptyColumn</span>(self: *Table, column_key: []<span class="tok-kw">const</span> <span class="tok-type">u8</span>) TableError!<span class="tok-type">usize</span> {</span>
-<span class="line" id="L203">        <span class="tok-comment">// check whether delimiter or terminator is in column_key</span>
+<span class="line" id="L201">        <span class="tok-kw">return</span> self.body.items.len - <span class="tok-number">1</span>;</span>
+<span class="line" id="L202">    }</span>
+<span class="line" id="L203"></span>
+<span class="line" id="L204">    <span class="tok-comment">/// Insert a new and empty column to all rows and return its index</span></span>
+<span class="line" id="L205">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">insertEmptyColumn</span>(self: *Table, column_key: []<span class="tok-kw">const</span> <span class="tok-type">u8</span>) TableError!<span class="tok-type">usize</span> {</span>
+<span class="line" id="L206">        <span class="tok-comment">// check whether delimiter or terminator is in column_key</span>
 </span>
-<span class="line" id="L204">        <span class="tok-kw">if</span> (std.mem.count(<span class="tok-type">u8</span>, column_key, self.settings.delimiter) != <span class="tok-number">0</span>) <span class="tok-kw">return</span> TableError.IllegalCharacter;</span>
-<span class="line" id="L205">        <span class="tok-kw">if</span> (std.mem.count(<span class="tok-type">u8</span>, column_key, self.settings.terminator) != <span class="tok-number">0</span>) <span class="tok-kw">return</span> TableError.IllegalCharacter;</span>
-<span class="line" id="L206"></span>
-<span class="line" id="L207">        <span class="tok-comment">// append new column to header</span>
-</span>
-<span class="line" id="L208">        <span class="tok-kw">try</span> self.header.append(column_key);</span>
+<span class="line" id="L207">        <span class="tok-kw">if</span> (std.mem.count(<span class="tok-type">u8</span>, column_key, self.settings.delimiter) != <span class="tok-number">0</span>) <span class="tok-kw">return</span> TableError.IllegalCharacter;</span>
+<span class="line" id="L208">        <span class="tok-kw">if</span> (std.mem.count(<span class="tok-type">u8</span>, column_key, self.settings.terminator) != <span class="tok-number">0</span>) <span class="tok-kw">return</span> TableError.IllegalCharacter;</span>
 <span class="line" id="L209"></span>
-<span class="line" id="L210">        <span class="tok-comment">// append new column to all rows</span>
+<span class="line" id="L210">        <span class="tok-comment">// append new column to header</span>
 </span>
-<span class="line" id="L211">        <span class="tok-kw">const</span> row_allocator = self.arena_allocator.allocator();</span>
+<span class="line" id="L211">        <span class="tok-kw">try</span> self.header.append(column_key);</span>
 <span class="line" id="L212"></span>
-<span class="line" id="L213">        <span class="tok-kw">for</span> (self.body.items, <span class="tok-number">0</span>..) |row, row_index| {</span>
-<span class="line" id="L214">            self.body.items[row_index] = <span class="tok-kw">try</span> std.fmt.allocPrint(row_allocator, <span class="tok-str">&quot;{s}{s}&quot;</span>, .{ row, self.settings.delimiter });</span>
-<span class="line" id="L215">        }</span>
-<span class="line" id="L216"></span>
-<span class="line" id="L217">        <span class="tok-kw">return</span> self.header.items.len - <span class="tok-number">1</span>;</span>
-<span class="line" id="L218">    }</span>
+<span class="line" id="L213">        <span class="tok-comment">// append new column to all rows</span>
+</span>
+<span class="line" id="L214">        <span class="tok-kw">const</span> row_allocator = self.arena_allocator.allocator();</span>
+<span class="line" id="L215"></span>
+<span class="line" id="L216">        <span class="tok-kw">for</span> (self.body.items) |row, row_index| {</span>
+<span class="line" id="L217">            self.body.items[row_index] = <span class="tok-kw">try</span> std.fmt.allocPrint(row_allocator, <span class="tok-str">&quot;{s}{s}&quot;</span>, .{ row, self.settings.delimiter });</span>
+<span class="line" id="L218">        }</span>
 <span class="line" id="L219"></span>
-<span class="line" id="L220">    <span class="tok-comment">/// Replace a value by a given new value, row index, and column index</span></span>
-<span class="line" id="L221">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">replaceValue</span>(self: *Table, row_index: <span class="tok-type">usize</span>, column_index: <span class="tok-type">usize</span>, value: []<span class="tok-kw">const</span> <span class="tok-type">u8</span>) TableError!<span class="tok-type">void</span> {</span>
-<span class="line" id="L222">        <span class="tok-kw">if</span> (row_index &gt;= self.body.items.len) <span class="tok-kw">return</span> TableError.IndexNotFound;</span>
-<span class="line" id="L223">        <span class="tok-kw">if</span> (std.mem.count(<span class="tok-type">u8</span>, value, self.settings.delimiter) != <span class="tok-number">0</span>) <span class="tok-kw">return</span> TableError.IllegalCharacter;</span>
-<span class="line" id="L224">        <span class="tok-kw">if</span> (std.mem.count(<span class="tok-type">u8</span>, value, self.settings.terminator) != <span class="tok-number">0</span>) <span class="tok-kw">return</span> TableError.IllegalCharacter;</span>
-<span class="line" id="L225"></span>
-<span class="line" id="L226">        <span class="tok-kw">var</span> row_values = ArrayList([]<span class="tok-kw">const</span> <span class="tok-type">u8</span>).init(self.allocator);</span>
-<span class="line" id="L227">        <span class="tok-kw">defer</span> row_values.deinit();</span>
+<span class="line" id="L220">        <span class="tok-kw">return</span> self.header.items.len - <span class="tok-number">1</span>;</span>
+<span class="line" id="L221">    }</span>
+<span class="line" id="L222"></span>
+<span class="line" id="L223">    <span class="tok-comment">/// Replace a value by a given new value, row index, and column index</span></span>
+<span class="line" id="L224">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">replaceValue</span>(self: *Table, row_index: <span class="tok-type">usize</span>, column_index: <span class="tok-type">usize</span>, value: []<span class="tok-kw">const</span> <span class="tok-type">u8</span>) TableError!<span class="tok-type">void</span> {</span>
+<span class="line" id="L225">        <span class="tok-kw">if</span> (row_index &gt;= self.body.items.len) <span class="tok-kw">return</span> TableError.IndexNotFound;</span>
+<span class="line" id="L226">        <span class="tok-kw">if</span> (std.mem.count(<span class="tok-type">u8</span>, value, self.settings.delimiter) != <span class="tok-number">0</span>) <span class="tok-kw">return</span> TableError.IllegalCharacter;</span>
+<span class="line" id="L227">        <span class="tok-kw">if</span> (std.mem.count(<span class="tok-type">u8</span>, value, self.settings.terminator) != <span class="tok-number">0</span>) <span class="tok-kw">return</span> TableError.IllegalCharacter;</span>
 <span class="line" id="L228"></span>
-<span class="line" id="L229">        <span class="tok-kw">var</span> row_value_iter = std.mem.split(<span class="tok-type">u8</span>, self.body.items[row_index], self.settings.delimiter);</span>
-<span class="line" id="L230">        <span class="tok-kw">while</span> (row_value_iter.next()) |row_value| <span class="tok-kw">try</span> row_values.append(row_value);</span>
+<span class="line" id="L229">        <span class="tok-kw">var</span> row_values = ArrayList([]<span class="tok-kw">const</span> <span class="tok-type">u8</span>).init(self.allocator);</span>
+<span class="line" id="L230">        <span class="tok-kw">defer</span> row_values.deinit();</span>
 <span class="line" id="L231"></span>
-<span class="line" id="L232">        <span class="tok-kw">if</span> (column_index &gt;= row_values.items.len) <span class="tok-kw">return</span> TableError.MissingValue;</span>
-<span class="line" id="L233">        <span class="tok-kw">try</span> row_values.replaceRange(column_index, <span class="tok-number">1</span>, &amp;.{value});</span>
+<span class="line" id="L232">        <span class="tok-kw">var</span> row_value_iter = std.mem.split(<span class="tok-type">u8</span>, self.body.items[row_index], self.settings.delimiter);</span>
+<span class="line" id="L233">        <span class="tok-kw">while</span> (row_value_iter.next()) |row_value| <span class="tok-kw">try</span> row_values.append(row_value);</span>
 <span class="line" id="L234"></span>
-<span class="line" id="L235">        <span class="tok-kw">const</span> new_row = <span class="tok-kw">try</span> std.mem.join(self.arena_allocator.allocator(), self.settings.delimiter, row_values.items);</span>
-<span class="line" id="L236">        <span class="tok-kw">try</span> self.body.replaceRange(row_index, <span class="tok-number">1</span>, &amp;.{new_row});</span>
-<span class="line" id="L237">    }</span>
-<span class="line" id="L238"></span>
-<span class="line" id="L239">    <span class="tok-comment">/// Remove a column by its index and reorder table, thus all prior column indexes should be treated as invalid</span></span>
-<span class="line" id="L240">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">deleteColumnByIndex</span>(self: *Table, column_index: <span class="tok-type">usize</span>) TableError!<span class="tok-type">void</span> {</span>
-<span class="line" id="L241">        <span class="tok-comment">// remove column from header</span>
+<span class="line" id="L235">        <span class="tok-kw">if</span> (column_index &gt;= row_values.items.len) <span class="tok-kw">return</span> TableError.MissingValue;</span>
+<span class="line" id="L236">        <span class="tok-kw">try</span> row_values.replaceRange(column_index, <span class="tok-number">1</span>, &amp;.{value});</span>
+<span class="line" id="L237"></span>
+<span class="line" id="L238">        <span class="tok-kw">const</span> new_row = <span class="tok-kw">try</span> std.mem.join(self.arena_allocator.allocator(), self.settings.delimiter, row_values.items);</span>
+<span class="line" id="L239">        <span class="tok-kw">try</span> self.body.replaceRange(row_index, <span class="tok-number">1</span>, &amp;.{new_row});</span>
+<span class="line" id="L240">    }</span>
+<span class="line" id="L241"></span>
+<span class="line" id="L242">    <span class="tok-comment">/// Remove a column by its index and reorder table, thus all prior column indexes should be treated as invalid</span></span>
+<span class="line" id="L243">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">deleteColumnByIndex</span>(self: *Table, column_index: <span class="tok-type">usize</span>) TableError!<span class="tok-type">void</span> {</span>
+<span class="line" id="L244">        <span class="tok-comment">// remove column from header</span>
 </span>
-<span class="line" id="L242">        _ = self.header.orderedRemove(column_index);</span>
-<span class="line" id="L243"></span>
-<span class="line" id="L244">        <span class="tok-comment">// remove column from body</span>
-</span>
-<span class="line" id="L245">        <span class="tok-kw">const</span> row_allocator = self.arena_allocator.allocator();</span>
+<span class="line" id="L245">        _ = self.header.orderedRemove(column_index);</span>
 <span class="line" id="L246"></span>
-<span class="line" id="L247">        <span class="tok-kw">for</span> (self.body.items, <span class="tok-number">0</span>..) |row, row_index| {</span>
-<span class="line" id="L248">            <span class="tok-kw">var</span> values = ArrayList([]<span class="tok-kw">const</span> <span class="tok-type">u8</span>).init(self.allocator);</span>
-<span class="line" id="L249">            <span class="tok-kw">defer</span> values.deinit();</span>
-<span class="line" id="L250"></span>
-<span class="line" id="L251">            <span class="tok-kw">var</span> value_iterator = std.mem.split(<span class="tok-type">u8</span>, row, self.settings.delimiter);</span>
-<span class="line" id="L252">            <span class="tok-kw">while</span> (value_iterator.next()) |value| <span class="tok-kw">try</span> values.append(value);</span>
+<span class="line" id="L247">        <span class="tok-comment">// remove column from body</span>
+</span>
+<span class="line" id="L248">        <span class="tok-kw">const</span> row_allocator = self.arena_allocator.allocator();</span>
+<span class="line" id="L249"></span>
+<span class="line" id="L250">        <span class="tok-kw">for</span> (self.body.items) |row, row_index| {</span>
+<span class="line" id="L251">            <span class="tok-kw">var</span> values = ArrayList([]<span class="tok-kw">const</span> <span class="tok-type">u8</span>).init(self.allocator);</span>
+<span class="line" id="L252">            <span class="tok-kw">defer</span> values.deinit();</span>
 <span class="line" id="L253"></span>
-<span class="line" id="L254">            _ = values.orderedRemove(column_index);</span>
-<span class="line" id="L255"></span>
-<span class="line" id="L256">            self.body.items[row_index] = <span class="tok-kw">try</span> std.mem.join(row_allocator, self.settings.delimiter, values.items);</span>
-<span class="line" id="L257">        }</span>
-<span class="line" id="L258">    }</span>
-<span class="line" id="L259"></span>
-<span class="line" id="L260">    <span class="tok-comment">/// Remove a row by its index and reorder table, thus all prior row indexes should be treated as invalid</span></span>
-<span class="line" id="L261">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">deleteRowByIndex</span>(self: *Table, row_index: <span class="tok-type">usize</span>) TableError!<span class="tok-type">void</span> {</span>
-<span class="line" id="L262">        _ = self.body.orderedRemove(row_index);</span>
-<span class="line" id="L263">    }</span>
-<span class="line" id="L264"></span>
-<span class="line" id="L265">    <span class="tok-comment">/// Return the stored table data in form of a CSV table</span></span>
-<span class="line" id="L266">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">exportCSV</span>(self: *Table, allocator: Allocator) TableError![]<span class="tok-kw">const</span> <span class="tok-type">u8</span> {</span>
-<span class="line" id="L267">        <span class="tok-kw">var</span> csv = ArrayList(<span class="tok-type">u8</span>).init(allocator);</span>
-<span class="line" id="L268"></span>
-<span class="line" id="L269">        <span class="tok-comment">// append header</span>
+<span class="line" id="L254">            <span class="tok-kw">var</span> value_iterator = std.mem.split(<span class="tok-type">u8</span>, row, self.settings.delimiter);</span>
+<span class="line" id="L255">            <span class="tok-kw">while</span> (value_iterator.next()) |value| <span class="tok-kw">try</span> values.append(value);</span>
+<span class="line" id="L256"></span>
+<span class="line" id="L257">            _ = values.orderedRemove(column_index);</span>
+<span class="line" id="L258"></span>
+<span class="line" id="L259">            self.body.items[row_index] = <span class="tok-kw">try</span> std.mem.join(row_allocator, self.settings.delimiter, values.items);</span>
+<span class="line" id="L260">        }</span>
+<span class="line" id="L261">    }</span>
+<span class="line" id="L262"></span>
+<span class="line" id="L263">    <span class="tok-comment">/// Remove a row by its index and reorder table, thus all prior row indexes should be treated as invalid</span></span>
+<span class="line" id="L264">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">deleteRowByIndex</span>(self: *Table, row_index: <span class="tok-type">usize</span>) TableError!<span class="tok-type">void</span> {</span>
+<span class="line" id="L265">        _ = self.body.orderedRemove(row_index);</span>
+<span class="line" id="L266">    }</span>
+<span class="line" id="L267"></span>
+<span class="line" id="L268">    <span class="tok-comment">/// Return the stored table data in form of a CSV table</span></span>
+<span class="line" id="L269">    <span class="tok-kw">pub</span> <span class="tok-kw">fn</span> <span class="tok-fn">exportCSV</span>(self: *Table, allocator: Allocator) TableError![]<span class="tok-kw">const</span> <span class="tok-type">u8</span> {</span>
+<span class="line" id="L270">        <span class="tok-kw">var</span> csv = ArrayList(<span class="tok-type">u8</span>).init(allocator);</span>
+<span class="line" id="L271"></span>
+<span class="line" id="L272">        <span class="tok-comment">// append header</span>
 </span>
-<span class="line" id="L270">        <span class="tok-kw">const</span> header = <span class="tok-kw">try</span> std.mem.join(allocator, self.settings.delimiter, self.header.items);</span>
-<span class="line" id="L271">        <span class="tok-kw">defer</span> allocator.free(header);</span>
-<span class="line" id="L272">        <span class="tok-kw">try</span> csv.appendSlice(header);</span>
-<span class="line" id="L273"></span>
-<span class="line" id="L274">        <span class="tok-comment">// append rows</span>
+<span class="line" id="L273">        <span class="tok-kw">const</span> header = <span class="tok-kw">try</span> std.mem.join(allocator, self.settings.delimiter, self.header.items);</span>
+<span class="line" id="L274">        <span class="tok-kw">defer</span> allocator.free(header);</span>
+<span class="line" id="L275">        <span class="tok-kw">try</span> csv.appendSlice(header);</span>
+<span class="line" id="L276"></span>
+<span class="line" id="L277">        <span class="tok-comment">// append rows</span>
 </span>
-<span class="line" id="L275">        <span class="tok-kw">for</span> (self.body.items) |row| {</span>
-<span class="line" id="L276">            <span class="tok-kw">try</span> csv.appendSlice(self.settings.terminator);</span>
-<span class="line" id="L277">            <span class="tok-kw">try</span> csv.appendSlice(row);</span>
-<span class="line" id="L278">        }</span>
-<span class="line" id="L279"></span>
-<span class="line" id="L280">        <span class="tok-kw">return</span> csv.items;</span>
-<span class="line" id="L281">    }</span>
-<span class="line" id="L282">};</span>
-<span class="line" id="L283"></span>
+<span class="line" id="L278">        <span class="tok-kw">for</span> (self.body.items) |row| {</span>
+<span class="line" id="L279">            <span class="tok-kw">if</span> (row.len &gt; <span class="tok-number">0</span>) {</span>
+<span class="line" id="L280">                <span class="tok-kw">try</span> csv.appendSlice(self.settings.terminator);</span>
+<span class="line" id="L281">                <span class="tok-kw">try</span> csv.appendSlice(row);</span>
+<span class="line" id="L282">            }</span>
+<span class="line" id="L283">        }</span>
+<span class="line" id="L284"></span>
+<span class="line" id="L285">        <span class="tok-kw">return</span> csv.items;</span>
+<span class="line" id="L286">    }</span>
+<span class="line" id="L287">};</span>
+<span class="line" id="L288"></span>
 </code></pre></body>
 </html>

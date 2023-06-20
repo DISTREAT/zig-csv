@@ -202,20 +202,20 @@
 <span class="line" id="L84">        .{ <span class="tok-str">&quot;7410&quot;</span>, &amp;Target.powerpc.cpu.@&quot;7400&quot; },</span>
 <span class="line" id="L85">        .{ <span class="tok-str">&quot;7447&quot;</span>, &amp;Target.powerpc.cpu.@&quot;7400&quot; },</span>
 <span class="line" id="L86">        .{ <span class="tok-str">&quot;7455&quot;</span>, &amp;Target.powerpc.cpu.@&quot;7450&quot; },</span>
-<span class="line" id="L87">        .{ <span class="tok-str">&quot;G4&quot;</span>, &amp;Target.powerpc.cpu.g4 },</span>
+<span class="line" id="L87">        .{ <span class="tok-str">&quot;G4&quot;</span>, &amp;Target.powerpc.cpu.@&quot;g4&quot; },</span>
 <span class="line" id="L88">        .{ <span class="tok-str">&quot;POWER4&quot;</span>, &amp;Target.powerpc.cpu.@&quot;970&quot; },</span>
 <span class="line" id="L89">        .{ <span class="tok-str">&quot;PPC970FX&quot;</span>, &amp;Target.powerpc.cpu.@&quot;970&quot; },</span>
 <span class="line" id="L90">        .{ <span class="tok-str">&quot;PPC970MP&quot;</span>, &amp;Target.powerpc.cpu.@&quot;970&quot; },</span>
-<span class="line" id="L91">        .{ <span class="tok-str">&quot;G5&quot;</span>, &amp;Target.powerpc.cpu.g5 },</span>
-<span class="line" id="L92">        .{ <span class="tok-str">&quot;POWER5&quot;</span>, &amp;Target.powerpc.cpu.g5 },</span>
-<span class="line" id="L93">        .{ <span class="tok-str">&quot;A2&quot;</span>, &amp;Target.powerpc.cpu.a2 },</span>
-<span class="line" id="L94">        .{ <span class="tok-str">&quot;POWER6&quot;</span>, &amp;Target.powerpc.cpu.pwr6 },</span>
-<span class="line" id="L95">        .{ <span class="tok-str">&quot;POWER7&quot;</span>, &amp;Target.powerpc.cpu.pwr7 },</span>
-<span class="line" id="L96">        .{ <span class="tok-str">&quot;POWER8&quot;</span>, &amp;Target.powerpc.cpu.pwr8 },</span>
-<span class="line" id="L97">        .{ <span class="tok-str">&quot;POWER8E&quot;</span>, &amp;Target.powerpc.cpu.pwr8 },</span>
-<span class="line" id="L98">        .{ <span class="tok-str">&quot;POWER8NVL&quot;</span>, &amp;Target.powerpc.cpu.pwr8 },</span>
-<span class="line" id="L99">        .{ <span class="tok-str">&quot;POWER9&quot;</span>, &amp;Target.powerpc.cpu.pwr9 },</span>
-<span class="line" id="L100">        .{ <span class="tok-str">&quot;POWER10&quot;</span>, &amp;Target.powerpc.cpu.pwr10 },</span>
+<span class="line" id="L91">        .{ <span class="tok-str">&quot;G5&quot;</span>, &amp;Target.powerpc.cpu.@&quot;g5&quot; },</span>
+<span class="line" id="L92">        .{ <span class="tok-str">&quot;POWER5&quot;</span>, &amp;Target.powerpc.cpu.@&quot;g5&quot; },</span>
+<span class="line" id="L93">        .{ <span class="tok-str">&quot;A2&quot;</span>, &amp;Target.powerpc.cpu.@&quot;a2&quot; },</span>
+<span class="line" id="L94">        .{ <span class="tok-str">&quot;POWER6&quot;</span>, &amp;Target.powerpc.cpu.@&quot;pwr6&quot; },</span>
+<span class="line" id="L95">        .{ <span class="tok-str">&quot;POWER7&quot;</span>, &amp;Target.powerpc.cpu.@&quot;pwr7&quot; },</span>
+<span class="line" id="L96">        .{ <span class="tok-str">&quot;POWER8&quot;</span>, &amp;Target.powerpc.cpu.@&quot;pwr8&quot; },</span>
+<span class="line" id="L97">        .{ <span class="tok-str">&quot;POWER8E&quot;</span>, &amp;Target.powerpc.cpu.@&quot;pwr8&quot; },</span>
+<span class="line" id="L98">        .{ <span class="tok-str">&quot;POWER8NVL&quot;</span>, &amp;Target.powerpc.cpu.@&quot;pwr8&quot; },</span>
+<span class="line" id="L99">        .{ <span class="tok-str">&quot;POWER9&quot;</span>, &amp;Target.powerpc.cpu.@&quot;pwr9&quot; },</span>
+<span class="line" id="L100">        .{ <span class="tok-str">&quot;POWER10&quot;</span>, &amp;Target.powerpc.cpu.@&quot;pwr10&quot; },</span>
 <span class="line" id="L101">    };</span>
 <span class="line" id="L102"></span>
 <span class="line" id="L103">    <span class="tok-kw">fn</span> <span class="tok-fn">line_hook</span>(self: *PowerpcCpuinfoImpl, key: []<span class="tok-kw">const</span> <span class="tok-type">u8</span>, value: []<span class="tok-kw">const</span> <span class="tok-type">u8</span>) !<span class="tok-type">bool</span> {</span>
@@ -361,7 +361,7 @@
 <span class="line" id="L223">        };</span>
 <span class="line" id="L224"></span>
 <span class="line" id="L225">        <span class="tok-kw">var</span> known_models: [self.cores.len]?*<span class="tok-kw">const</span> Target.Cpu.Model = <span class="tok-null">undefined</span>;</span>
-<span class="line" id="L226">        <span class="tok-kw">for</span> (self.cores[<span class="tok-number">0</span>..self.core_no], <span class="tok-number">0</span>..) |core, i| {</span>
+<span class="line" id="L226">        <span class="tok-kw">for</span> (self.cores[<span class="tok-number">0</span>..self.core_no]) |core, i| {</span>
 <span class="line" id="L227">            known_models[i] = cpu_models.isKnown(.{</span>
 <span class="line" id="L228">                .architecture = core.architecture,</span>
 <span class="line" id="L229">                .implementer = core.implementer,</span>
