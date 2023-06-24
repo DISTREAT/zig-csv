@@ -264,7 +264,7 @@
 <span class="line" id="L142"></span>
 <span class="line" id="L143">        <span class="tok-kw">if</span> (column_indexes.items.len &lt;= <span class="tok-number">0</span>) <span class="tok-kw">return</span> TableError.KeyNotFound;</span>
 <span class="line" id="L144"></span>
-<span class="line" id="L145">        <span class="tok-kw">return</span> column_indexes.items;</span>
+<span class="line" id="L145">        <span class="tok-kw">return</span> column_indexes.toOwnedSlice();</span>
 <span class="line" id="L146">    }</span>
 <span class="line" id="L147"></span>
 <span class="line" id="L148">    <span class="tok-comment">/// Return a slice of row indexes by a provided column index and searched value</span></span>
@@ -286,7 +286,7 @@
 <span class="line" id="L164"></span>
 <span class="line" id="L165">        <span class="tok-kw">if</span> (row_indexes.items.len &lt;= <span class="tok-number">0</span>) <span class="tok-kw">return</span> TableError.RowNotFound;</span>
 <span class="line" id="L166"></span>
-<span class="line" id="L167">        <span class="tok-kw">return</span> row_indexes.items;</span>
+<span class="line" id="L167">        <span class="tok-kw">return</span> row_indexes.toOwnedSlice();</span>
 <span class="line" id="L168">    }</span>
 <span class="line" id="L169"></span>
 <span class="line" id="L170">    <span class="tok-comment">/// Returns a struct ColumnIterator, containing all elements of a given column by its index</span></span>
@@ -413,7 +413,7 @@
 <span class="line" id="L282">            }</span>
 <span class="line" id="L283">        }</span>
 <span class="line" id="L284"></span>
-<span class="line" id="L285">        <span class="tok-kw">return</span> csv.items;</span>
+<span class="line" id="L285">        <span class="tok-kw">return</span> csv.toOwnedSlice();</span>
 <span class="line" id="L286">    }</span>
 <span class="line" id="L287">};</span>
 <span class="line" id="L288"></span>

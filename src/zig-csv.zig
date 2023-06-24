@@ -142,7 +142,7 @@ pub const Table = struct {
 
         if (column_indexes.items.len <= 0) return TableError.KeyNotFound;
 
-        return column_indexes.items;
+        return column_indexes.toOwnedSlice();
     }
 
     /// Return a slice of row indexes by a provided column index and searched value
@@ -164,7 +164,7 @@ pub const Table = struct {
 
         if (row_indexes.items.len <= 0) return TableError.RowNotFound;
 
-        return row_indexes.items;
+        return row_indexes.toOwnedSlice();
     }
 
     /// Returns a struct ColumnIterator, containing all elements of a given column by its index
@@ -282,6 +282,6 @@ pub const Table = struct {
             }
         }
 
-        return csv.items;
+        return csv.toOwnedSlice();
     }
 };
