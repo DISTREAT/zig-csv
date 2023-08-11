@@ -56,7 +56,7 @@ pub const RowIterator = struct {
     /// The current column index as used by RowIterator.next
     iterator_index: usize = 0,
     header: []const []const u8,
-    row: std.mem.SplitIterator(u8),
+    row: std.mem.SplitIterator(u8, .sequence),
 
     /// Reset the iterator for the function RowIterator.next
     pub fn reset(self: *RowIterator) void {
