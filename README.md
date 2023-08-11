@@ -2,7 +2,7 @@
 
 A library for parsing, creating, and manipulating CSV data.
 
-_Build using zig version: `0.10.1`_
+_Build using zig version: `0.11.0`_
 
 ## Features
 
