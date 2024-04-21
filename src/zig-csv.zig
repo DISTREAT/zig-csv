@@ -1,8 +1,6 @@
 //! This module provides structs for parsing and manipulating CSV data
 //! [Released under GNU LGPLv3]
 //!
-//! zig-autodoc-guide: ../../README.md
-//! zig-autodoc-guide: ../../LICENSE.txt
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
