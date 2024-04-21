@@ -5,8 +5,9 @@ pub fn build(b: *std.Build) void {
     const mode = b.standardOptimizeOption(.{});
 
     _ = b.addModule("zig-csv", .{
-        .source_file = .{ .path = "src/zig-csv.zig" },
-        .dependencies = &[_]std.Build.ModuleDependency{},
+        .root_source_file = .{ .path = "src/zig-csv.zig" },
+        .optimize = mode,
+        .target = target,
     });
 
     const lib = b.addStaticLibrary(.{
