@@ -7,6 +7,7 @@ const ArrayList = std.ArrayList;
 const TableIterator = @import("iterators.zig").TableIterator;
 const RowIterator = @import("iterators.zig").RowIterator;
 const ColumnIterator = @import("iterators.zig").ColumnIterator;
+const getColumnItemInQuote = @import("iterators.zig").getColumnItemInQuote;
 
 /// A structure for storing settings for use with struct Table
 pub const Settings = struct {
@@ -14,6 +15,8 @@ pub const Settings = struct {
     delimiter: []const u8,
     /// The terminator that defines when a row of delimiter-separated values is terminated
     terminator: []const u8,
+    /// The check_quote discards delimiters inside "double quotes" when separating values
+    check_quote: bool,
 
     /// A function that returns the default settings that are most commonly used for CSV data
     /// { .delimiter = ",", .terminator = "\n" }
@@ -21,6 +24,7 @@ pub const Settings = struct {
         return Settings{
             .delimiter = ",",
             .terminator = "\n",
+            .check_quote = false,
         };
     }
 };
@@ -59,16 +63,22 @@ pub const Table = struct {
     body: std.ArrayListAligned([]const u8, null),
 
     // Return the item with the matching index from an iterator struct std.mem.SplitIterator(T)
-    fn splitIteratorGetIndex(comptime T: type, split_iterator: *std.mem.SplitIterator(T, .sequence), target_index: usize) TableError![]const T {
-        var index: usize = 0;
+    fn splitIteratorGetIndex(self: Table, comptime T: type, split_iterator: *std.mem.SplitIterator(T, .sequence), target_index: usize) TableError![]const T {
+        if (self.check_quote) {
+            return getColumnItemInQuote(u8, split_iterator, target_index, self.allocator);
+        } else {
+            var index: usize = 0;
 
-        while (split_iterator.next()) |item| : (index += 1) {
-            if (index == target_index) {
-                return item;
-            }
+            if (!self.settings.check_quote) {
+                while (split_iterator.next()) |item| : (index += 1) {
+                    if (index == target_index) {
+                        return item;
+                    }
+                }
+            } else {}
+
+            return TableError.IndexNotFound;
         }
-
-        return TableError.IndexNotFound;
     }
 
     /// Initialize struct Table
@@ -125,6 +135,8 @@ pub const Table = struct {
             .delimiter = self.settings.delimiter,
             .header = self.header.items,
             .body = self.body.items,
+            .allocator = self.allocator,
+            .check_quote = self.settings.check_quote,
         };
     }
 
@@ -153,7 +165,7 @@ pub const Table = struct {
             const row_count = std.mem.count(u8, row, self.settings.delimiter) + 1;
             var row_values = std.mem.splitSequence(u8, row, self.settings.delimiter);
             if (column_index >= row_count) return TableError.MissingValue;
-            const value = try Table.splitIteratorGetIndex(u8, &row_values, column_index);
+            const value = try self.splitIteratorGetIndex(u8, &row_values, column_index);
 
             if (std.mem.eql(u8, value, searched_value)) {
                 try row_indexes.append(row_index);
@@ -171,6 +183,8 @@ pub const Table = struct {
             .body = self.body.items,
             .delimiter = self.settings.delimiter,
             .column_index = column_index,
+            .allocator = self.allocator,
+            .check_quote = self.settings.check_quote,
         };
     }
 
@@ -181,6 +195,8 @@ pub const Table = struct {
         return RowIterator{
             .header = self.header.items,
             .row = std.mem.splitSequence(u8, self.body.items[row_index], self.settings.delimiter),
+            .allocator = self.allocator,
+            .check_quote = self.settings.check_quote,
         };
     }
 

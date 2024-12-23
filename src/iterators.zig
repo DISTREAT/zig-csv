@@ -2,6 +2,7 @@
 //! [Released under GNU LGPLv3]
 const std = @import("std");
 const TableError = @import("zig-csv.zig").TableError;
+const Allocator = std.mem.Allocator;
 
 /// A struct for iterating over or fetching rows from a parsed table
 pub const TableIterator = struct {
@@ -10,6 +11,8 @@ pub const TableIterator = struct {
     delimiter: []const u8,
     header: []const []const u8,
     body: []const []const u8,
+    allocator: Allocator,
+    check_quote: bool,
 
     /// Reset the iterator for the function TableIterator.next
     pub fn reset(self: *TableIterator) void {
@@ -23,6 +26,8 @@ pub const TableIterator = struct {
         const row = RowIterator{
             .header = self.header,
             .row = std.mem.splitSequence(u8, self.body[self.iterator_index], self.delimiter),
+            .allocator = self.allocator,
+            .check_quote = self.check_quote,
         };
 
         self.iterator_index += 1;
@@ -57,6 +62,8 @@ pub const RowIterator = struct {
     iterator_index: usize = 0,
     header: []const []const u8,
     row: std.mem.SplitIterator(u8, .sequence),
+    allocator: Allocator,
+    check_quote: bool,
 
     /// Reset the iterator for the function RowIterator.next
     pub fn reset(self: *RowIterator) void {
@@ -69,11 +76,17 @@ pub const RowIterator = struct {
         const value = self.row.next();
         if (value == null) return null;
 
-        const item = RowItem{
+        var item = RowItem{
             .column_index = self.iterator_index,
             .key = self.header[self.iterator_index],
             .value = value.?,
         };
+
+        if (self.check_quote and item.value.len > 0 and item.value[0] == '"' and item.value[item.value.len - 1] != '"') {
+            while (item.value[item.value.len - 1] != '"') {
+                item.value = std.mem.concat(self.allocator, u8, &[_][]const u8{ item.value, self.row.delimiter, self.row.next().? }) catch item.value;
+            }
+        }
 
         self.iterator_index += 1;
 
@@ -85,16 +98,23 @@ pub const RowIterator = struct {
         var iterator = std.mem.splitSequence(u8, self.row.buffer, self.row.delimiter);
         var current_column_index: usize = 0;
 
-        while (iterator.next()) |value| : (current_column_index += 1) {
-            if (current_column_index == target_column_index) {
-                return RowItem{
-                    .column_index = current_column_index,
-                    .key = self.header[current_column_index],
-                    .value = value,
-                };
+        if (self.check_quote) {
+            return RowItem{
+                .column_index = current_column_index,
+                .key = self.header[current_column_index],
+                .value = try getColumnItemInQuote(u8, &iterator, target_column_index, self.allocator),
+            };
+        } else {
+            while (iterator.next()) |value| : (current_column_index += 1) {
+                if (current_column_index == target_column_index) {
+                    return RowItem{
+                        .column_index = current_column_index,
+                        .key = self.header[current_column_index],
+                        .value = value,
+                    };
+                }
             }
         }
-
         return TableError.IndexNotFound;
     }
 };
@@ -114,19 +134,31 @@ pub const ColumnIterator = struct {
     column_index: usize,
     delimiter: []const u8,
     body: []const []const u8,
+    allocator: Allocator,
+    check_quote: bool,
 
     // Create a ColumnItem from a row
     fn rowToColumnItem(self: ColumnIterator, row: []const u8) ColumnItem {
         var item: ColumnItem = undefined;
         var values = std.mem.splitSequence(u8, row, self.delimiter);
 
-        var current_index: usize = 0;
-        while (values.next()) |value| : (current_index += 1) {
-            if (current_index == self.column_index) {
+        if (self.check_quote) {
+            const value: ?[]const u8 = getColumnItemInQuote(u8, &values, self.column_index, self.allocator) catch null;
+            if (value != null) {
                 item = ColumnItem{
                     .row_index = self.iterator_index,
-                    .value = value,
+                    .value = value.?,
                 };
+            }
+        } else {
+            var current_index: usize = 0;
+            while (values.next()) |value| : (current_index += 1) {
+                if (current_index == self.column_index) {
+                    item = ColumnItem{
+                        .row_index = self.iterator_index,
+                        .value = value,
+                    };
+                }
             }
         }
 
@@ -160,3 +192,31 @@ pub const ColumnIterator = struct {
         return item;
     }
 };
+
+/// Return the value of a column in a row, while discarding delimiters inside "double quotes"
+pub fn getColumnItemInQuote(comptime T: type, split_iterator: *std.mem.SplitIterator(T, .sequence), target_index: usize, allocator: Allocator) TableError![]const T {
+    var index: usize = 0;
+    var tmp_val: ?[]const u8 = null;
+
+    while (split_iterator.next()) |*item| {
+        var item_value = item.*;
+        if (item_value.len > 0) {
+            if (tmp_val == null and item_value[0] == '"' and item_value[item_value.len - 1] != '"') {
+                tmp_val = item_value;
+            } else if (tmp_val != null) {
+                tmp_val = std.mem.concat(allocator, u8, &[_][]const u8{ tmp_val.?, split_iterator.delimiter, item_value }) catch tmp_val;
+                if (item_value[item_value.len - 1] == '"') {
+                    item_value = tmp_val.?;
+                    tmp_val = null;
+                }
+            }
+        }
+        if (tmp_val == null) {
+            if (index == target_index) {
+                return item_value;
+            }
+            index += 1;
+        }
+    }
+    return TableError.IndexNotFound;
+}
