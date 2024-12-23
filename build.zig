@@ -5,18 +5,18 @@ pub fn build(b: *std.Build) void {
     const mode = b.standardOptimizeOption(.{});
 
     _ = b.addModule("zig-csv", .{
-        .root_source_file = .{ .path = "src/zig-csv.zig" },
+        .root_source_file = b.path("src/zig-csv.zig"),
         .optimize = mode,
         .target = target,
     });
 
     const lib = b.addStaticLibrary(.{
         .name = "zig-cvs",
-        .root_source_file = .{ .path = "src/zig-csv.zig" },
+        .root_source_file = b.path("src/zig-csv.zig"),
         .optimize = mode,
         .target = target,
     });
-    const lib_tests = b.addTest(.{ .root_source_file = .{ .path = "src/tests.zig" } });
+    const lib_tests = b.addTest(.{ .root_source_file = b.path("src/tests.zig") });
 
     const install_docs = b.addInstallDirectory(.{
         .source_dir = lib.getEmittedDocs(),
