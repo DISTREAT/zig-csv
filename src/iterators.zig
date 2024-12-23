@@ -22,7 +22,7 @@ pub const TableIterator = struct {
 
         const row = RowIterator{
             .header = self.header,
-            .row = std.mem.split(u8, self.body[self.iterator_index], self.delimiter),
+            .row = std.mem.splitSequence(u8, self.body[self.iterator_index], self.delimiter),
         };
 
         self.iterator_index += 1;
@@ -36,7 +36,7 @@ pub const TableIterator = struct {
 
         return RowIterator{
             .header = self.header,
-            .row = std.mem.split(u8, self.body[row_index], self.delimiter),
+            .row = std.mem.splitSequence(u8, self.body[row_index], self.delimiter),
         };
     }
 };
@@ -82,7 +82,7 @@ pub const RowIterator = struct {
 
     /// Return the value of the column with the provided index without changing the iterator index
     pub fn get(self: *RowIterator, target_column_index: usize) TableError!RowItem {
-        var iterator = std.mem.split(u8, self.row.buffer, self.row.delimiter);
+        var iterator = std.mem.splitSequence(u8, self.row.buffer, self.row.delimiter);
         var current_column_index: usize = 0;
 
         while (iterator.next()) |value| : (current_column_index += 1) {
@@ -118,7 +118,7 @@ pub const ColumnIterator = struct {
     // Create a ColumnItem from a row
     fn rowToColumnItem(self: ColumnIterator, row: []const u8) ColumnItem {
         var item: ColumnItem = undefined;
-        var values = std.mem.split(u8, row, self.delimiter);
+        var values = std.mem.splitSequence(u8, row, self.delimiter);
 
         var current_index: usize = 0;
         while (values.next()) |value| : (current_index += 1) {

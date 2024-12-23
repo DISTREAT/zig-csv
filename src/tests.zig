@@ -38,7 +38,7 @@ test "Initialize Table using Table.parseRow and export to CSV via Table.exportCS
     var table = csv.Table.init(allocator, csv.Settings.default());
     defer table.deinit();
 
-    var csv_data_1_iterator = std.mem.split(u8, csv_data_1, "\n");
+    var csv_data_1_iterator = std.mem.splitSequence(u8, csv_data_1, "\n");
     while (csv_data_1_iterator.next()) |row| try table.parseRow(row);
 
     const exported: []const u8 = try table.exportCSV(allocator);
