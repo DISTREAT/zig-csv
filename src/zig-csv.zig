@@ -91,9 +91,9 @@ pub const Table = struct {
 
     /// Load CSV data into the struct Table
     pub fn parse(self: *Table, csv_data: []const u8) TableError!void {
-        var rows = std.mem.split(u8, csv_data, self.settings.terminator);
-        var header = std.mem.split(u8, rows.next() orelse return TableError.MissingHeader, self.settings.delimiter);
-        var body = std.mem.split(u8, rows.rest(), self.settings.terminator);
+        var rows = std.mem.splitSequence(u8, csv_data, self.settings.terminator);
+        var header = std.mem.splitSequence(u8, rows.next() orelse return TableError.MissingHeader, self.settings.delimiter);
+        var body = std.mem.splitSequence(u8, rows.rest(), self.settings.terminator);
 
         self.header.clearAndFree();
         self.body.clearAndFree();
@@ -106,7 +106,7 @@ pub const Table = struct {
     pub fn parseRow(self: *Table, csv_row: []const u8) TableError!void {
         if (self.header.items.len == 0) {
             // assuming that csv_row is the header
-            var values = std.mem.split(u8, csv_row, self.settings.delimiter);
+            var values = std.mem.splitSequence(u8, csv_row, self.settings.delimiter);
             while (values.next()) |value| try self.header.append(value);
         } else {
             // assuming that csv_row is a row of the body
@@ -151,7 +151,7 @@ pub const Table = struct {
 
         for (self.body.items, 0..) |row, row_index| {
             const row_count = std.mem.count(u8, row, self.settings.delimiter) + 1;
-            var row_values = std.mem.split(u8, row, self.settings.delimiter);
+            var row_values = std.mem.splitSequence(u8, row, self.settings.delimiter);
             if (column_index >= row_count) return TableError.MissingValue;
             const value = try Table.splitIteratorGetIndex(u8, &row_values, column_index);
 
@@ -180,7 +180,7 @@ pub const Table = struct {
 
         return RowIterator{
             .header = self.header.items,
-            .row = std.mem.split(u8, self.body.items[row_index], self.settings.delimiter),
+            .row = std.mem.splitSequence(u8, self.body.items[row_index], self.settings.delimiter),
         };
     }
 
@@ -227,7 +227,7 @@ pub const Table = struct {
         var row_values = ArrayList([]const u8).init(self.allocator);
         defer row_values.deinit();
 
-        var row_value_iter = std.mem.split(u8, self.body.items[row_index], self.settings.delimiter);
+        var row_value_iter = std.mem.splitSequence(u8, self.body.items[row_index], self.settings.delimiter);
         while (row_value_iter.next()) |row_value| try row_values.append(row_value);
 
         if (column_index >= row_values.items.len) return TableError.MissingValue;
@@ -249,7 +249,7 @@ pub const Table = struct {
             var values = ArrayList([]const u8).init(self.allocator);
             defer values.deinit();
 
-            var value_iterator = std.mem.split(u8, row, self.settings.delimiter);
+            var value_iterator = std.mem.splitSequence(u8, row, self.settings.delimiter);
             while (value_iterator.next()) |value| try values.append(value);
 
             _ = values.orderedRemove(column_index);
