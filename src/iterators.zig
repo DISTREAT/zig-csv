@@ -42,6 +42,8 @@ pub const TableIterator = struct {
         return RowIterator{
             .header = self.header,
             .row = std.mem.splitSequence(u8, self.body[row_index], self.delimiter),
+            .allocator = self.allocator,
+            .check_quote = self.check_quote,
         };
     }
 };
@@ -100,8 +102,8 @@ pub const RowIterator = struct {
 
         if (self.check_quote) {
             return RowItem{
-                .column_index = current_column_index,
-                .key = self.header[current_column_index],
+                .column_index = target_column_index,
+                .key = self.header[target_column_index],
                 .value = try getColumnItemInQuote(u8, &iterator, target_column_index, self.allocator),
             };
         } else {
@@ -194,29 +196,30 @@ pub const ColumnIterator = struct {
 };
 
 /// Return the value of a column in a row, while discarding delimiters inside "double quotes"
-pub fn getColumnItemInQuote(comptime T: type, split_iterator: *std.mem.SplitIterator(T, .sequence), target_index: usize, allocator: Allocator) TableError![]const T {
+pub fn getColumnItemInQuote(comptime T: type, split_iterator: *std.mem.SplitIterator(T, .sequence), target_index: usize, allocator: std.mem.Allocator) TableError![]const T {
     var index: usize = 0;
-    var tmp_val: ?[]const u8 = null;
+    var in_quote = false;
+    var item_in_quote: []const u8 = "";
 
-    while (split_iterator.next()) |*item| {
-        var item_value = item.*;
-        if (item_value.len > 0) {
-            if (tmp_val == null and item_value[0] == '"' and item_value[item_value.len - 1] != '"') {
-                tmp_val = item_value;
-            } else if (tmp_val != null) {
-                tmp_val = std.mem.concat(allocator, u8, &[_][]const u8{ tmp_val.?, split_iterator.delimiter, item_value }) catch tmp_val;
-                if (item_value[item_value.len - 1] == '"') {
-                    item_value = tmp_val.?;
-                    tmp_val = null;
-                }
-            }
-        }
-        if (tmp_val == null) {
+    while (split_iterator.next()) |item| {
+        if (!in_quote and item.len > 1 and item[0] == '"' and item[item.len - 1] != '"') { // check if item is the beginning of a double quoted value
+            in_quote = true;
+            if (index == target_index) item_in_quote = item;
+            continue;
+        } else if (in_quote) { // process item inside double quote
+            // allocate if item needs to be returned
             if (index == target_index) {
-                return item_value;
+                item_in_quote = try std.mem.concat(allocator, u8, &[_][]const u8{ item_in_quote, split_iterator.delimiter, item });
             }
-            index += 1;
+            if (item.len == 0 or item[item.len - 1] != '"') continue;
+            // item is the end of the double quoted value
+            in_quote = false;
         }
+
+        // return item value
+        if (item_in_quote.len > 0) return item_in_quote else if (index == target_index) return item;
+        index += 1;
     }
+
     return TableError.IndexNotFound;
 }
