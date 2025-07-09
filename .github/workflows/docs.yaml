@@ -18,9 +18,9 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: mlugg/setup-zig@v1
+      - uses: mlugg/setup-zig@v2
         with:
-          version: 0.14.0-dev.2628+5b5c60f43
+          version: 0.14.1
       - run: zig build docs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
