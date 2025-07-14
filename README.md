@@ -1,6 +1,6 @@
 # zig-csv
 
-A library for parsing, creating, and manipulating CSV data.
+A library for parsing, creating, and manipulating CSV data in Zig.
 
 ## Features
 
@@ -9,7 +9,13 @@ A library for parsing, creating, and manipulating CSV data.
 - Low-level access: exposes internals for flexibility and control.
 - Real-world compatibility: handles edge cases and non-standard CSV formats.
 
-## Example
+## Philosophy
+
+The design of this library is guided by the principles outlined in the [CSV Parser Philosophy](PHILOSOPHY.md) document,
+which emphasizes data integrity, fail-fast behavior, and low-level access to parsed data.
+This design approach ensures the library is compatible with real-world CSV data while avoiding ambiguity in parsing.
+
+## Usage
 
 ```zig
 const std = @import("std");
@@ -51,8 +57,7 @@ std.debug.print("Exported CSV:\n{s}\n", .{exported});
 
 _More examples can be found in `src/tests.zig`._
 
-## Docs
+## Documentation
 
-The documentation is created in the directory `docs/` when running `zig build`.
-
-[Documentation](https://distreat.github.io/zig-csv/)
+The documentation is available [online](https://distreat.github.io/zig-csv/),
+or can be built locally using `zig build docs`.
