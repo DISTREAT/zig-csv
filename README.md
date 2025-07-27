@@ -14,43 +14,37 @@ const std = @import("std");
 const csv = @import("zig-csv");
 const allocator = std.heap.allocator;
 
-// parse CSV data
+// Parse CSV data
 var table = csv.Table.init(allocator, csv.Settings.default());
 defer table.deinit();
-
 try table.parse(
-    \\id,animal,shorthand
-    \\0,dog,d
-    \\1,cat,c
-    \\2,pig,p
+    \\id,animal,color
+    \\1,cat,black
+    \\2,dog,brown
+    \\3,bird,blue
 );
 
-// print all animals
-const column_indexes_animal = try table.findColumnIndexesByKey(allocator, "animal");
-defer allocator.free(column_indexes_animal);
+// Change the color of the dog to "white"
+const animal_col = try table.findColumnIndexesByValue(allocator, 0, "animal")[0];
+const dog_row = try table.findRowIndexesByValue(allocator, animal_col, "dog")[0];
+const color_col = try table.findColumnIndexesByValue(allocator, 0, "color")[0];
+try table.replaceValue(dog_row, color_col, "white");
 
-var animals = table.getColumnByIndex(column_indexes_animal[0]);
+// Add a new animal
+const new_row = try table.insertEmptyRow(null);
+try table.replaceValue(new_row, animal_col, "fish");
+try table.replaceValue(new_row, color_col, "gold");
 
-while (animals.next()) |animal| {
-    std.debug.print("{s}", .{animal.value});
-}
-
-// replace a value
-const column_indexes_id = try table.findColumnIndexesByKey(allocator, "id");
-defer allocator.free(column_indexes_id);
-
-const row_indexes_id_2 = try table.findRowIndexesByValue(allocator, column_indexes_id[0], "2");
-defer allocator.free(row_indexes_id_2);
-
-try table.replaceValue(row_indexes_id_2[0], column_indexes_animal[0], "porcupine");
-
-// delete a column
-try table.deleteColumnByIndex(column_indexes_id[0]);
-
-// export back to CSV
+// Export the table back to CSV
 const exported = try table.exportCSV(allocator);
 defer allocator.free(exported);
 
+std.debug.print("Exported CSV:\n{s}\n", .{exported});
+// id,animal,color
+// 1,cat,black
+// 2,dog,white
+// 3,bird,blue
+// ,fish,gold
 ```
 
 _More examples can be found in `src/tests.zig`._
