@@ -12,7 +12,7 @@ test "StructuredTable: Parse CSV into struct and access rows" {
         foo: f32,
     };
 
-    var table = StructuredTable(DogTable).init(allocator, csv.Settings.default());
+    var table = StructuredTable(DogTable).init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\name,age,alive,foo
@@ -46,7 +46,7 @@ test "StructuredTable: Edit struct row and export to CSV" {
         foo: f32,
     };
 
-    var table = StructuredTable(DogTable).init(allocator, csv.Settings.default());
+    var table = StructuredTable(DogTable).init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\name,age,alive,foo
@@ -81,7 +81,7 @@ test "StructuredTable: Delete struct row" {
         foo: f32,
     };
 
-    var table = StructuredTable(DogTable).init(allocator, csv.Settings.default());
+    var table = StructuredTable(DogTable).init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\name,age,alive,foo
@@ -111,7 +111,7 @@ test "StructuredTable: Create empty struct table and insert rows" {
         foo: f32,
     };
 
-    var table = StructuredTable(DogTable).init(allocator, csv.Settings.default());
+    var table = StructuredTable(DogTable).init(allocator, csv.LexerSettings.default());
     defer table.deinit();
 
     const new_row_1 = DogTable{
@@ -150,7 +150,7 @@ test "StructuredTable: Insert row at specific index" {
         foo: f32,
     };
 
-    var table = StructuredTable(DogTable).init(allocator, csv.Settings.default());
+    var table = StructuredTable(DogTable).init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\name,age,alive,foo
@@ -187,7 +187,7 @@ test "StructuredTable: Handle parsing error due to invalid csv type" {
         foo: f32,
     };
 
-    var table = StructuredTable(DogTable).init(allocator, csv.Settings.default());
+    var table = StructuredTable(DogTable).init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\name,age,alive,foo
@@ -209,7 +209,7 @@ test "StructuredTable: Optional fields parse and null behavior" {
         foo: ?f32,
     };
 
-    var table = StructuredTable(DogTableOpt).init(allocator, csv.Settings.default());
+    var table = StructuredTable(DogTableOpt).init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\name,age,alive,foo
@@ -242,7 +242,7 @@ test "StructuredTable: Optional fields edit writes empty when null" {
         foo: ?f32,
     };
 
-    var table = StructuredTable(DogTableOpt).init(allocator, csv.Settings.default());
+    var table = StructuredTable(DogTableOpt).init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\name,age,alive,foo

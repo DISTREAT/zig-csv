@@ -5,6 +5,7 @@
 // Import test files as anonymous comptime blocks so they don't create duplicate
 // top-level symbols in this module.
 comptime {
+    _ = @import("parser.zig");
     _ = @import("schema.zig");
     _ = @import("table.zig");
 }

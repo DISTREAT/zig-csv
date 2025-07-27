@@ -54,12 +54,12 @@ These edge cases are handled in a way that is consistent with the principles abo
 | Missing final newline           | `a,b,c` EOF                                 | The parser should not require a final newline character at the end of the file, as per the RFC 4180 standard.                                               |
 | Missing header row              | -                                           | The header row is optional, as per the RFC 4180 standard. The parser should be able to handle files without a header row.                                   |
 
-| Unsupported Cases                       | Example                                            | Reasoning                                                                                                                         |
-| --------------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| Empty lines                             | `a,b\n\nc`                                         | Empty lines may be a result of a misconfiguration or an error in the data. The parser should fail-fast to avoid cascading errors. |
-| Inconsistent row lengths                | `a,b\nc,d,e`                                       | Fail-fast on inconsistent row lengths to ensure data integrity. Each row should have the same number of fields.                   |
-| Backslash escaping                      | `a\,b` → `["a,b"]` or `a,"\"",c` → `["a,\"", "c"]` | Backslash escaping is currently unsupported as it is not part of the RFC 4180 standard and could lead to ambiguity.               |
-| Fields with comment-style trailing text | `a,b # note`                                       | Trailing comments are parsed verbatim and as part of the field. This should be avoided to prevent ambiguity.                      |
+| Unsupported Cases                       | Example                                            | Reasoning                                                                                                                                                   |
+| --------------------------------------- | -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Empty lines                             | `a,b\n\nc`                                         | Empty lines may be a result of a misconfiguration or an error in the data. The parser should fail-fast to avoid cascading errors.                           |
+| Inconsistent row lengths                | `a,b\nc,d,e`                                       | Fail-fast on inconsistent row lengths to ensure data integrity. Each row should have the same number of fields.                                             |
+| Backslash escaping                      | `a\,b` → `["a,b"]` or `a,"\"",c` → `["a,\"", "c"]` | Backslash escaping is currently unsupported as it is not part of the RFC 4180 standard and could lead to ambiguity. However, it may be enabled if required. |
+| Fields with comment-style trailing text | `a,b # note`                                       | Trailing comments are parsed verbatim and as part of the field. This should be avoided to prevent ambiguity.                                                |
 
 # References
 

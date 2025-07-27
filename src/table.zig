@@ -1,21 +1,10 @@
 const std = @import("std");
+const parser = @import("parser.zig");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
-
-/// A structure for storing settings for use with struct Table
-pub const Settings = struct {
-    /// The delimiter that separates the values (aka. separator)
-    delimiter: []const u8,
-    /// The terminator that defines when a row of delimiter-separated values is terminated
-    terminator: []const u8,
-
-    pub fn default() Settings {
-        return Settings{
-            .delimiter = ",",
-            .terminator = "\n",
-        };
-    }
-};
+const LexerSettings = parser.LexerSettings;
+const Parser = parser.Parser;
+const ParserError = parser.ParserError;
 
 /// Errors that may return from struct Table
 pub const TableError = error{
@@ -29,48 +18,57 @@ pub const TableError = error{
 
 /// A structure for parsing and manipulating CSV data
 pub const Table = struct {
-    settings: Settings,
     allocator: Allocator,
-    expected_column_count: ?usize,
     data: ArrayList(ArrayList([]const u8)),
+    expected_column_count: ?usize,
+    settings: LexerSettings,
 
-    pub fn init(allocator: Allocator, settings: Settings) Table {
+    pub fn init(allocator: Allocator, settings: LexerSettings) Table {
         return Table{
-            .settings = settings,
             .allocator = allocator,
-            .expected_column_count = null,
             .data = .empty,
+            .expected_column_count = null,
+            .settings = settings,
         };
     }
 
     pub fn deinit(self: *Table) void {
         for (self.data.items) |*row| {
+            for (row.items) |field| self.allocator.free(field);
             row.deinit(self.allocator);
         }
         self.data.deinit(self.allocator);
     }
 
-    pub fn parse(self: *Table, csv_data: []const u8) TableError!void {
-        const csv_data_sanitized = std.mem.trimEnd(u8, csv_data, self.settings.terminator);
-        var rows = std.mem.splitSequence(u8, csv_data_sanitized, self.settings.terminator);
-        while (rows.next()) |row| {
-            const value_count = try self.parseRow(row);
+    pub fn parse(self: *Table, csv_data: []const u8) (TableError || ParserError)!void {
+        var csv_parser = Parser.init(self.settings, csv_data);
+        var row: ArrayList([]const u8) = .empty;
+        errdefer {
+            for (row.items) |field| self.allocator.free(field);
+            row.deinit(self.allocator);
+        }
+        while (try csv_parser.next(self.allocator)) |result| switch (result) {
+            .field => try row.append(self.allocator, result.field),
+            .end_of_row => {
+                if (self.expected_column_count == null) {
+                    self.expected_column_count = row.items.len;
+                }
+                if (self.expected_column_count != row.items.len) {
+                    return TableError.InconsistentRowLength;
+                }
+                try self.data.append(self.allocator, row);
+                row = .empty;
+            },
+        };
+        if (row.items.len > 0) {
             if (self.expected_column_count == null) {
-                self.expected_column_count = value_count;
-            } else if (value_count != self.expected_column_count) {
+                self.expected_column_count = row.items.len;
+            }
+            if (self.expected_column_count != row.items.len) {
                 return TableError.InconsistentRowLength;
             }
+            try self.data.append(self.allocator, row);
         }
-    }
-
-    fn parseRow(self: *Table, row: []const u8) TableError!usize {
-        var values: ArrayList([]const u8) = .empty;
-        var columns = std.mem.splitSequence(u8, row, self.settings.delimiter);
-        while (columns.next()) |value| {
-            try values.append(self.allocator, value);
-        }
-        try self.data.append(self.allocator, values);
-        return values.items.len;
     }
 
     pub fn getRowCount(self: Table) usize {
@@ -160,13 +158,15 @@ pub const Table = struct {
         if (column_index >= (self.expected_column_count orelse 0)) return TableError.ColumnNotFound;
         if (std.mem.indexOf(u8, new_value, self.settings.delimiter) != null) return TableError.IllegalCharacter;
         if (std.mem.indexOf(u8, new_value, self.settings.terminator) != null) return TableError.IllegalCharacter;
-        self.data.items[row_index].items[column_index] = new_value;
+        self.allocator.free(self.data.items[row_index].items[column_index]);
+        self.data.items[row_index].items[column_index] = try self.allocator.dupe(u8, new_value);
     }
 
     pub fn deleteColumnByIndex(self: *Table, column_index: usize) TableError!void {
         if (self.expected_column_count == null) return TableError.ColumnNotFound;
         if (column_index >= (self.expected_column_count orelse 0)) return TableError.ColumnNotFound;
         for (self.data.items) |*row| {
+            self.allocator.free(row.items[column_index]);
             _ = row.orderedRemove(column_index);
         }
         self.expected_column_count = (self.expected_column_count orelse 0) - 1;
@@ -174,6 +174,7 @@ pub const Table = struct {
 
     pub fn deleteRowByIndex(self: *Table, row_index: usize) TableError!void {
         if (row_index >= self.data.items.len) return TableError.RowNotFound;
+        for (self.data.items[row_index].items) |field| self.allocator.free(field);
         self.data.items[row_index].deinit(self.allocator);
         _ = self.data.orderedRemove(row_index);
     }
@@ -188,7 +189,25 @@ pub const Table = struct {
                 if (column_index > 0) {
                     try csv.appendSlice(allocator, self.settings.delimiter);
                 }
-                try csv.appendSlice(allocator, column);
+                const requires_quotation = (std.mem.containsAtLeast(u8, column, 1, self.settings.delimiter) or
+                    std.mem.containsAtLeast(u8, column, 1, self.settings.terminator) or
+                    std.mem.containsAtLeast(u8, column, 1, self.settings.quote));
+                if (requires_quotation) try csv.appendSlice(allocator, self.settings.quote);
+                var cursor: usize = 0;
+                while (cursor < column.len) {
+                    const lookahead = column[cursor..];
+                    if (self.settings.escape != null and
+                        std.mem.startsWith(u8, lookahead, self.settings.escape.?))
+                    {
+                        try csv.appendSlice(allocator, self.settings.escape.?);
+                    } else if (std.mem.startsWith(u8, lookahead, self.settings.quote)) {
+                        // double quote escapes the quote as per RFC
+                        try csv.appendSlice(allocator, self.settings.quote);
+                    }
+                    try csv.append(allocator, column[cursor]);
+                    cursor += 1;
+                }
+                if (requires_quotation) try csv.appendSlice(allocator, self.settings.quote);
             }
         }
         return csv.toOwnedSlice(allocator);

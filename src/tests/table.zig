@@ -5,7 +5,7 @@ const allocator = std.testing.allocator;
 const StructuredTable = csv.StructuredTable;
 
 test "Initialize Table using Table.parse and export to CSV via Table.exportCSV" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     const csv_data =
         \\id,shorthand,animal name,scientific name
@@ -22,7 +22,7 @@ test "Initialize Table using Table.parse and export to CSV via Table.exportCSV" 
 }
 
 test "Initialize Table using Table.parseRow and export to CSV via Table.exportCSV" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     const csv_data =
         \\id,letter
@@ -38,8 +38,10 @@ test "Initialize Table using Table.parseRow and export to CSV via Table.exportCS
 }
 
 test "Initialize Table using custom delimiter and terminator and export to CSV via Table.exportCSV" {
-    var table = csv.Table.init(allocator, csv.Settings{
+    var table = csv.Table.init(allocator, csv.LexerSettings{
         .delimiter = "-",
+        .escape = "\\",
+        .quote = "\"",
         .terminator = "|",
     });
     defer table.deinit();
@@ -54,7 +56,7 @@ test "Initialize Table using custom delimiter and terminator and export to CSV v
 }
 
 test "Get number of rows using Table.getRowCount" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,animal name,scientific name
@@ -65,7 +67,7 @@ test "Get number of rows using Table.getRowCount" {
 }
 
 test "Get number of columns using Table.getColumnCount" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,animal name,scientific name
@@ -76,7 +78,7 @@ test "Get number of columns using Table.getColumnCount" {
 }
 
 test "Find indexes of columns using Table.findColumnIndexesByValue" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,animal name,scientific name
@@ -109,7 +111,7 @@ test "Find indexes of columns using Table.findColumnIndexesByValue" {
 }
 
 test "Find indexes of columns using Table.findRowIndexesByValue" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,animal name,scientific name
@@ -142,7 +144,7 @@ test "Find indexes of columns using Table.findRowIndexesByValue" {
 }
 
 test "Get column by index using Table.getColumnByIndex" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,letter
@@ -165,7 +167,7 @@ test "Get column by index using Table.getColumnByIndex" {
 }
 
 test "Get row by index using Table.getRowByIndex" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,letter
@@ -184,7 +186,7 @@ test "Get row by index using Table.getRowByIndex" {
 }
 
 test "Replace values using Table.replaceValue" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,letter
@@ -205,8 +207,10 @@ test "Replace values using Table.replaceValue" {
 }
 
 test "Replace values containing illegal characters using Table.replaceValues" {
-    var table = csv.Table.init(allocator, csv.Settings{
+    var table = csv.Table.init(allocator, csv.LexerSettings{
         .delimiter = ",",
+        .escape = "\\",
+        .quote = "\"",
         .terminator = "\n",
     });
     defer table.deinit();
@@ -220,7 +224,7 @@ test "Replace values containing illegal characters using Table.replaceValues" {
 }
 
 test "Append row using Table.insertEmptyRow" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,letter
@@ -240,7 +244,7 @@ test "Append row using Table.insertEmptyRow" {
 }
 
 test "Insert row using Table.insertEmptyRow" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     const csv_data =
         \\id,letter
@@ -261,7 +265,7 @@ test "Insert row using Table.insertEmptyRow" {
 }
 
 test "Append column using Table.insertEmptyColumn" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,letter
@@ -280,7 +284,7 @@ test "Append column using Table.insertEmptyColumn" {
 }
 
 test "Insert column using Table.insertEmptyColumn" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     const csv_data =
         \\id,letter
@@ -300,7 +304,7 @@ test "Insert column using Table.insertEmptyColumn" {
 }
 
 test "Append row using Table.insertEmptyRow and Table.replaceValue" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,letter
@@ -323,7 +327,7 @@ test "Append row using Table.insertEmptyRow and Table.replaceValue" {
 }
 
 test "Append column using Table.insertEmptyColumn and Table.replaceValue" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,letter
@@ -346,7 +350,7 @@ test "Append column using Table.insertEmptyColumn and Table.replaceValue" {
 }
 
 test "Delete row using Table.deleteRowByIndex" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,letter
@@ -365,7 +369,7 @@ test "Delete row using Table.deleteRowByIndex" {
 }
 
 test "Delete column using Table.deleteColumnByIndex" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,letter
@@ -385,7 +389,7 @@ test "Delete column using Table.deleteColumnByIndex" {
 }
 
 test "Parse row with trailing delimiter" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\a,b,
@@ -399,7 +403,7 @@ test "Parse row with trailing delimiter" {
 }
 
 test "Parse multiple consecutive delimiters" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\a,,,d
@@ -414,7 +418,7 @@ test "Parse multiple consecutive delimiters" {
 }
 
 test "Parse unescaped empty field" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\a,,c
@@ -428,7 +432,7 @@ test "Parse unescaped empty field" {
 }
 
 test "Handle trailing empty row" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\a,b
@@ -446,7 +450,7 @@ test "Fail-fast on empty row" {
         \\
         \\c,d
     ;
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     const result = table.parse(data);
     try expect(result == csv.TableError.InconsistentRowLength);
@@ -455,10 +459,149 @@ test "Fail-fast on empty row" {
 test "Fail-fast on inconsistent row lengths" {
     const data =
         \\a,b
-        \\c,d,e"
+        \\c,d,e
     ;
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     const result = table.parse(data);
     try expect(result == csv.TableError.InconsistentRowLength);
+}
+
+test "Parse empty escaped field" {
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
+    defer table.deinit();
+    try table.parse(
+        \\a,"",c
+    );
+
+    const row = try table.getRowByIndex(0);
+    try expect(row.len == 3);
+    try expect(std.mem.eql(u8, row[0], "a"));
+    try expect(std.mem.eql(u8, row[1], ""));
+    try expect(std.mem.eql(u8, row[2], "c"));
+}
+
+test "Parse with custom escape character" {
+    const data =
+        \\|a|,|b|
+    ;
+    var table = csv.Table.init(allocator, csv.LexerSettings{
+        .delimiter = ",",
+        .escape = "\\",
+        .quote = "|",
+        .terminator = "\n",
+    });
+    defer table.deinit();
+    try table.parse(data);
+
+    const exported = try table.exportCSV(allocator);
+    defer allocator.free(exported);
+    const expected_csv =
+        \\a,b
+    ;
+    try expect(std.mem.eql(u8, exported, expected_csv));
+}
+
+test "Parse escaped field with delimiter" {
+    const data =
+        \\a,"example string, with delimiter",c
+    ;
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
+    defer table.deinit();
+    try table.parse(data);
+
+    const exported = try table.exportCSV(allocator);
+    defer allocator.free(exported);
+    try expect(std.mem.eql(u8, exported, data));
+}
+
+test "Parse escaped field with escaped quote characters" {
+    const data =
+        \\a,"example string, with ""escape character""",c
+    ;
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
+    defer table.deinit();
+    try table.parse(data);
+
+    const exported = try table.exportCSV(allocator);
+    defer allocator.free(exported);
+    try expect(std.mem.eql(u8, exported, data));
+}
+
+test "Parse escaped field with newline" {
+    const data =
+        \\a,"example string,
+        \\with newline",c
+    ;
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
+    defer table.deinit();
+    try table.parse(data);
+
+    const exported = try table.exportCSV(allocator);
+    defer allocator.free(exported);
+    try expect(std.mem.eql(u8, exported, data));
+}
+
+test "Fail-fast on unopened escaped field" {
+    const data =
+        \\a,example string",c
+    ;
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
+    defer table.deinit();
+    const result = table.parse(data);
+    try expect(result == csv.ParserError.IllegalQuotation);
+}
+
+test "Fail-fast on unclosed escaped field" {
+    const data =
+        \\a,"example string,c
+    ;
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
+    defer table.deinit();
+    const result = table.parse(data);
+    try expect(result == csv.ParserError.UnfinishedQuotation);
+}
+
+test "Fail-fast on whitespace between escape character and delimiter" {
+    const data =
+        \\"a, "example string",c
+    ;
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
+    defer table.deinit();
+    const result = table.parse(data);
+    try expect(result == csv.ParserError.IllegalQuotation);
+}
+
+test "Fail-fast on unescaped escape character" {
+    const data =
+        \\a,example "str"ing,c
+    ;
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
+    defer table.deinit();
+    const result = table.parse(data);
+    try expect(result == csv.ParserError.IllegalQuotation);
+}
+
+test "Handle custom escape character in exported CSV" {
+    var table = csv.Table.init(allocator, csv.LexerSettings{
+        .delimiter = ",",
+        .escape = "|",
+        .quote = "\"",
+        .terminator = "\n",
+    });
+    defer table.deinit();
+    try table.parse(
+        \\id,letter
+        \\0,a
+    );
+
+    try table.replaceValue(1, 1, "example \"word\"");
+
+    const exported: []const u8 = try table.exportCSV(allocator);
+    defer allocator.free(exported);
+    const expected_csv =
+        \\id,letter
+        \\0,"example ""word"""
+    ;
+    try expect(std.mem.eql(u8, exported, expected_csv));
 }
