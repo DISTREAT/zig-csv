@@ -4,8 +4,10 @@ A library for parsing, creating, and manipulating CSV data.
 
 ## Features
 
-- avoiding memory leaks
-- flexible and simplistic API
+- Data integrity: modifications are explicit and predictable.
+- Fail-fast: ambiguous or malformed input results in immediate failure.
+- Low-level access: exposes internals for flexibility and control.
+- Real-world compatibility: handles edge cases and non-standard CSV formats.
 
 ## Example
 
