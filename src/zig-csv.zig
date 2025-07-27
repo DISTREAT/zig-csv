@@ -4,9 +4,6 @@
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
-const TableIterator = @import("iterators.zig").TableIterator;
-const RowIterator = @import("iterators.zig").RowIterator;
-const ColumnIterator = @import("iterators.zig").ColumnIterator;
 
 /// A structure for storing settings for use with struct Table
 pub const Settings = struct {
@@ -27,259 +24,247 @@ pub const Settings = struct {
 
 /// Errors that may return from struct Table
 pub const TableError = error{
-    /// The requested index is out of bounds
-    IndexNotFound,
-    /// The provided key name was not found in the header of the CSV data
-    KeyNotFound,
-    /// The CSV is missing a header (first row defining column keys)
-    MissingHeader,
-    /// A CSV row is missing a column
-    MissingValue,
+    /// The requested column was not found
+    ColumnNotFound,
+    /// The requested value contains a delimiter or terminator character
+    IllegalCharacter,
+    /// A row is inconsistent with the number of values previously parsed
+    InconsistentRowLength,
+    /// Data must be loaded first to perform the requested operation
+    NoData,
     /// Could not allocate required memory
     OutOfMemory,
     /// The requested row was not found
     RowNotFound,
-    /// The requested value contains a delimiter or terminator character
-    IllegalCharacter,
+    /// The requested value was not found
+    ValueNotFound,
 };
 
 /// A structure for parsing and manipulating CSV data
 pub const Table = struct {
     /// The settings that should be used when parsing the CSV data
     settings: Settings,
-    // allocator that was first passed to initialize header and body
-    // typically used when new buffer data is temporarily allocated
+    // allocator used for temporary allocations
     allocator: Allocator,
-    // allocator that will automatically be deinitialized when Table.deinit is called
-    // typically used when new data for the table is allocated
-    arena_allocator: std.heap.ArenaAllocator,
-    // array of the names of columns, as denoted by the first row in a CSV table
-    header: std.ArrayListAligned([]const u8, null),
-    // array of delimiter-separated rows
-    body: std.ArrayListAligned([]const u8, null),
-
-    // Return the item with the matching index from an iterator struct std.mem.SplitIterator(T)
-    fn splitIteratorGetIndex(comptime T: type, split_iterator: *std.mem.SplitIterator(T, .sequence), target_index: usize) TableError![]const T {
-        var index: usize = 0;
-
-        while (split_iterator.next()) |item| : (index += 1) {
-            if (index == target_index) {
-                return item;
-            }
-        }
-
-        return TableError.IndexNotFound;
-    }
+    // amount of columns expected in each row, used for validation
+    expected_column_count: ?usize,
+    // array of rows, each row is an array of subsequent column values
+    data: ArrayList(ArrayList([]const u8)),
 
     /// Initialize struct Table
     pub fn init(allocator: Allocator, settings: Settings) Table {
         return Table{
             .settings = settings,
             .allocator = allocator,
-            .arena_allocator = std.heap.ArenaAllocator.init(allocator),
-            .header = ArrayList([]const u8).init(allocator),
-            .body = ArrayList([]const u8).init(allocator),
+            .expected_column_count = null,
+            .data = ArrayList(ArrayList([]const u8)).init(allocator),
         };
     }
 
-    /// De-initialize a struct Table, freeing its used memory
+    /// Deinitializes the internal arena allocator and parsed data
     pub fn deinit(self: *Table) void {
-        self.header.deinit();
-        self.body.deinit();
-        self.arena_allocator.deinit();
-    }
-
-    /// Load CSV data into the struct Table
-    pub fn parse(self: *Table, csv_data: []const u8) TableError!void {
-        var rows = std.mem.splitSequence(u8, csv_data, self.settings.terminator);
-        var header = std.mem.splitSequence(u8, rows.next() orelse return TableError.MissingHeader, self.settings.delimiter);
-        var body = std.mem.splitSequence(u8, rows.rest(), self.settings.terminator);
-
-        self.header.clearAndFree();
-        self.body.clearAndFree();
-
-        while (header.next()) |key| if (key.len > 0) try self.header.append(key);
-        while (body.next()) |row| if (row.len > 0) try self.body.append(row);
-    }
-
-    /// Append row of CSV data to the struct Table
-    pub fn parseRow(self: *Table, csv_row: []const u8) TableError!void {
-        if (self.header.items.len == 0) {
-            // assuming that csv_row is the header
-            var values = std.mem.splitSequence(u8, csv_row, self.settings.delimiter);
-            while (values.next()) |value| try self.header.append(value);
-        } else {
-            // assuming that csv_row is a row of the body
-            try self.body.append(csv_row);
+        for (self.data.items) |row| {
+            row.deinit();
         }
+        self.data.deinit();
     }
 
-    /// Returns a slice of all column keys
-    pub fn getAllColumns(self: Table) []const []const u8 {
-        return self.header.items;
-    }
-
-    /// Returns a struct TableIterator containing all rows inside struct Table
-    pub fn getAllRows(self: Table) TableIterator {
-        return TableIterator{
-            .delimiter = self.settings.delimiter,
-            .header = self.header.items,
-            .body = self.body.items,
-        };
-    }
-
-    /// Return a slice of column indexes by provided key
-    pub fn findColumnIndexesByKey(self: Table, allocator: Allocator, searched_key: []const u8) TableError![]usize {
-        var column_indexes = ArrayList(usize).init(allocator);
-
-        for (self.header.items, 0..) |current_key, index| {
-            if (std.mem.eql(u8, current_key, searched_key)) {
-                try column_indexes.append(index);
+    /// Load and append CSV data to the struct Table
+    pub fn parse(self: *Table, csv_data: []const u8) TableError!void {
+        const csv_data_sanatized = std.mem.trimRight(u8, csv_data, self.settings.terminator);
+        var rows = std.mem.splitSequence(u8, csv_data_sanatized, self.settings.terminator);
+        while (rows.next()) |row| {
+            const value_count = try self.parseRow(row);
+            if (self.expected_column_count == null) {
+                self.expected_column_count = value_count;
+            } else if (value_count != self.expected_column_count) {
+                return TableError.InconsistentRowLength;
             }
         }
+    }
 
-        if (column_indexes.items.len <= 0) return TableError.KeyNotFound;
+    /// Parse a single row of CSV data and append it to the struct Table
+    ///
+    /// Returns the number of values parsed in the row.
+    fn parseRow(self: *Table, row: []const u8) TableError!usize {
+        var values = ArrayList([]const u8).init(self.allocator);
+        var columns = std.mem.splitSequence(u8, row, self.settings.delimiter);
+        while (columns.next()) |value| {
+            try values.append(value);
+        }
+        try self.data.append(values);
+        return values.items.len;
+    }
 
+    /// Returns the number of rows in the table
+    pub fn getRowCount(self: Table) usize {
+        return self.data.items.len;
+    }
+
+    /// Returns the number of rows in the table
+    pub fn getColumnCount(self: Table) TableError!usize {
+        if (self.expected_column_count == null) return TableError.NoData;
+        return self.expected_column_count orelse unreachable;
+    }
+
+    /// Returns all columns indexes that match a given value in a specific row
+    ///
+    /// Arguments:
+    /// - `allocator`: The allocator to use for the returned slice.
+    /// - `row_index`: The index of the row to search in.
+    /// - `searched_value`: The value to search for in the row.
+    ///
+    /// Raises `TableError.ValueNotFound` if no matching values are found.
+    ///
+    /// This function may be used for retrieving columns by their header key:
+    /// ```zig
+    /// try table.parse(
+    ///    \\id,name
+    ///    \\1,John
+    /// );
+    /// const indexes = try table.findColumnIndexesByValue(allocator, 0, "id");
+    /// assert(indexes == &.{0});
+    /// ```
+    pub fn findColumnIndexesByValue(self: Table, allocator: Allocator, row_index: usize, searched_value: []const u8) TableError![]usize {
+        if (self.data.items.len < row_index) return TableError.RowNotFound;
+        var column_indexes = ArrayList(usize).init(allocator);
+        for (self.data.items[row_index].items, 0..) |column_value, column_index| {
+            if (std.mem.eql(u8, column_value, searched_value)) {
+                try column_indexes.append(column_index);
+            }
+        }
+        if (column_indexes.items.len <= 0) {
+            column_indexes.deinit();
+            return TableError.ValueNotFound;
+        }
         return column_indexes.toOwnedSlice();
     }
 
-    /// Return a slice of row indexes by a provided column index and searched value
+    /// Returns all row indexes that match a given value in a specific column
+    ///
+    /// Arguments:
+    /// - `allocator`: The allocator to use for the returned slice.
+    /// - `column_index`: The index of the column to search in.
+    /// - `searched_value`: The value to search for in the column.
+    ///
+    /// Raises `TableError.ValueNotFound` if no matching values are found.
+    ///
+    /// This function may be used for retrieving columns by their header key:
+    /// ```zig
+    /// try table.parse(
+    ///    \\id,name
+    ///    \\1,John
+    /// );
+    /// const indexes = try table.findRowIndexesByValue(allocator, 0, "1");
+    /// assert(indexes == &.{1});
+    /// ```
     pub fn findRowIndexesByValue(self: Table, allocator: Allocator, column_index: usize, searched_value: []const u8) TableError![]usize {
+        if (column_index >= self.expected_column_count orelse 0) return TableError.ColumnNotFound;
         var row_indexes = ArrayList(usize).init(allocator);
-
-        if (column_index >= self.header.items.len) return TableError.IndexNotFound;
-
-        for (self.body.items, 0..) |row, row_index| {
-            const row_count = std.mem.count(u8, row, self.settings.delimiter) + 1;
-            var row_values = std.mem.splitSequence(u8, row, self.settings.delimiter);
-            if (column_index >= row_count) return TableError.MissingValue;
-            const value = try Table.splitIteratorGetIndex(u8, &row_values, column_index);
-
-            if (std.mem.eql(u8, value, searched_value)) {
+        for (self.data.items, 0..) |row, row_index| {
+            if (std.mem.eql(u8, row.items[column_index], searched_value)) {
                 try row_indexes.append(row_index);
             }
         }
-
-        if (row_indexes.items.len <= 0) return TableError.RowNotFound;
-
+        if (row_indexes.items.len <= 0) {
+            row_indexes.deinit();
+            return TableError.ValueNotFound;
+        }
         return row_indexes.toOwnedSlice();
     }
 
-    /// Returns a struct ColumnIterator, containing all elements of a given column by its index
-    pub fn getColumnByIndex(self: Table, column_index: usize) ColumnIterator {
-        return ColumnIterator{
-            .body = self.body.items,
-            .delimiter = self.settings.delimiter,
-            .column_index = column_index,
-        };
-    }
-
-    /// Returns a struct RowIterator, containing all values of a given row by its index
-    pub fn getRowByIndex(self: *Table, row_index: usize) TableError!RowIterator {
-        if (row_index >= self.body.items.len) return TableError.IndexNotFound;
-
-        return RowIterator{
-            .header = self.header.items,
-            .row = std.mem.splitSequence(u8, self.body.items[row_index], self.settings.delimiter),
-        };
-    }
-
-    /// Insert a new and empty row and return its index
-    pub fn insertEmptyRow(self: *Table) TableError!usize {
-        // create empty row with expected amount of delimiter
-        var new_row = ArrayList(u8).init(self.arena_allocator.allocator());
-        var i: usize = 0;
-        while (i < self.header.items.len - 1) : (i += 1) {
-            try new_row.appendSlice(self.settings.delimiter);
+    /// Return the column at the provided index as a slice of values
+    pub fn getColumnByIndex(self: Table, allocator: Allocator, column_index: usize) TableError![]const []const u8 {
+        if (column_index > self.expected_column_count orelse 0) return TableError.ColumnNotFound;
+        var column_values = ArrayList([]const u8).init(allocator);
+        for (self.data.items) |row| {
+            try column_values.append(row.items[column_index]);
         }
-
-        // append row to body
-        try self.body.append(new_row.items);
-
-        return self.body.items.len - 1;
+        return column_values.toOwnedSlice();
     }
 
-    /// Insert a new and empty column to all rows and return its index
-    pub fn insertEmptyColumn(self: *Table, column_key: []const u8) TableError!usize {
-        // check whether delimiter or terminator is in column_key
-        if (std.mem.count(u8, column_key, self.settings.delimiter) != 0) return TableError.IllegalCharacter;
-        if (std.mem.count(u8, column_key, self.settings.terminator) != 0) return TableError.IllegalCharacter;
+    /// Return the row at the provided index as a slice of values
+    pub fn getRowByIndex(self: Table, row_index: usize) TableError![]const []const u8 {
+        if (row_index >= self.data.items.len) return TableError.RowNotFound;
+        return self.data.items[row_index].items;
+    }
 
-        // append new column to header
-        try self.header.append(column_key);
+    /// Insert an empty row at the provided index and shift all subsequent rows
+    ///
+    /// Arguments:
+    /// - `row_index`: The index at which to insert the empty row. If `null`, the row will be appended to the end.
+    ///
+    /// Returns the index of the newly inserted row.
+    pub fn insertEmptyRow(self: *Table, row_index: ?usize) TableError!usize {
+        const target_index = row_index orelse self.data.items.len;
+        if (self.expected_column_count == null) return TableError.NoData;
+        if (target_index > self.data.items.len) return TableError.RowNotFound;
+        var empty_row = ArrayList([]const u8).init(self.allocator);
+        for (0..self.expected_column_count orelse unreachable) |_| try empty_row.append("");
+        try self.data.insert(target_index, empty_row);
+        return target_index;
+    }
 
-        // append new column to all rows
-        const row_allocator = self.arena_allocator.allocator();
-
-        for (self.body.items, 0..) |row, row_index| {
-            self.body.items[row_index] = try std.fmt.allocPrint(row_allocator, "{s}{s}", .{ row, self.settings.delimiter });
+    /// Insert an empty column at the provided index and shift all subsequent columns
+    ///
+    /// Arguments:
+    /// - `column_index`: The index at which to insert the empty column. If `null`, the column will be appended to the end.
+    ///
+    /// Returns the index of the newly inserted column.
+    pub fn insertEmptyColumn(self: *Table, column_index: ?usize) TableError!usize {
+        const target_index = column_index orelse self.expected_column_count orelse return TableError.NoData;
+        if (target_index > self.expected_column_count orelse unreachable) return TableError.ColumnNotFound;
+        for (self.data.items) |*row| {
+            try row.insert(target_index, "");
         }
-
-        return self.header.items.len - 1;
+        self.expected_column_count = (self.expected_column_count orelse unreachable) + 1;
+        return target_index;
     }
 
     /// Replace a value by a given new value, row index, and column index
-    pub fn replaceValue(self: *Table, row_index: usize, column_index: usize, value: []const u8) TableError!void {
-        if (row_index >= self.body.items.len) return TableError.IndexNotFound;
-        if (std.mem.count(u8, value, self.settings.delimiter) != 0) return TableError.IllegalCharacter;
-        if (std.mem.count(u8, value, self.settings.terminator) != 0) return TableError.IllegalCharacter;
-
-        var row_values = ArrayList([]const u8).init(self.allocator);
-        defer row_values.deinit();
-
-        var row_value_iter = std.mem.splitSequence(u8, self.body.items[row_index], self.settings.delimiter);
-        while (row_value_iter.next()) |row_value| try row_values.append(row_value);
-
-        if (column_index >= row_values.items.len) return TableError.MissingValue;
-        try row_values.replaceRange(column_index, 1, &.{value});
-
-        const new_row = try std.mem.join(self.arena_allocator.allocator(), self.settings.delimiter, row_values.items);
-        try self.body.replaceRange(row_index, 1, &.{new_row});
+    pub fn replaceValue(self: *Table, row_index: usize, column_index: usize, new_value: []const u8) TableError!void {
+        if (row_index >= self.data.items.len) return TableError.RowNotFound;
+        if (column_index >= self.expected_column_count orelse 0) return TableError.ColumnNotFound;
+        if (std.mem.count(u8, new_value, self.settings.delimiter) != 0) return TableError.IllegalCharacter;
+        if (std.mem.count(u8, new_value, self.settings.terminator) != 0) return TableError.IllegalCharacter;
+        self.data.items[row_index].items[column_index] = new_value;
     }
 
-    /// Remove a column by its index and reorder table, thus all prior column indexes should be treated as invalid
+    /// Remove a column by its index
+    ///
+    /// All prior column indexes will be invalidated.
     pub fn deleteColumnByIndex(self: *Table, column_index: usize) TableError!void {
-        // remove column from header
-        _ = self.header.orderedRemove(column_index);
-
-        // remove column from body
-        const row_allocator = self.arena_allocator.allocator();
-
-        for (self.body.items, 0..) |row, row_index| {
-            var values = ArrayList([]const u8).init(self.allocator);
-            defer values.deinit();
-
-            var value_iterator = std.mem.splitSequence(u8, row, self.settings.delimiter);
-            while (value_iterator.next()) |value| try values.append(value);
-
-            _ = values.orderedRemove(column_index);
-
-            self.body.items[row_index] = try std.mem.join(row_allocator, self.settings.delimiter, values.items);
+        if (self.expected_column_count == null) return TableError.NoData;
+        if (column_index >= self.expected_column_count orelse unreachable) return TableError.ColumnNotFound;
+        for (self.data.items) |*row| {
+            _ = row.orderedRemove(column_index);
         }
+        self.expected_column_count = (self.expected_column_count orelse unreachable) - 1;
     }
 
-    /// Remove a row by its index and reorder table, thus all prior row indexes should be treated as invalid
+    /// Remove a row by its index
+    ///
+    /// All prior row indexes will be invalidated.
     pub fn deleteRowByIndex(self: *Table, row_index: usize) TableError!void {
-        _ = self.body.orderedRemove(row_index);
+        if (row_index >= self.data.items.len) return TableError.RowNotFound;
+        self.data.items[row_index].deinit();
+        _ = self.data.orderedRemove(row_index);
     }
 
-    /// Return the stored table data in form of a CSV table
+    /// Returns a slice of bytes containing the CSV data stored in the struct Table.
     pub fn exportCSV(self: *Table, allocator: Allocator) TableError![]const u8 {
         var csv = ArrayList(u8).init(allocator);
-
-        // append header
-        const header = try std.mem.join(allocator, self.settings.delimiter, self.header.items);
-        defer allocator.free(header);
-        try csv.appendSlice(header);
-
-        // append rows
-        for (self.body.items) |row| {
-            if (row.len > 0) {
+        for (self.data.items, 0..) |row, row_index| {
+            if (row_index > 0) {
                 try csv.appendSlice(self.settings.terminator);
-                try csv.appendSlice(row);
+            }
+            for (row.items, 0..) |column, column_index| {
+                if (column_index > 0) {
+                    try csv.appendSlice(self.settings.delimiter);
+                }
+                try csv.appendSlice(column);
             }
         }
-
         return csv.toOwnedSlice();
     }
 };
