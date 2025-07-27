@@ -58,7 +58,6 @@ These edge cases are handled in a way that is consistent with the principles abo
 | --------------------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | Empty lines                             | `a,b\n\nc`                                         | Empty lines may be a result of a misconfiguration or an error in the data. The parser should fail-fast to avoid cascading errors. |
 | Inconsistent row lengths                | `a,b\nc,d,e`                                       | Fail-fast on inconsistent row lengths to ensure data integrity. Each row should have the same number of fields.                   |
-| Mixed styles                            | `'a',"b"` or `a,b\n1;2`                            | Fail-fast on mixed character styles to ensure consistency in parsing. The parser should not attempt to guess the style.           |
 | Backslash escaping                      | `a\,b` → `["a,b"]` or `a,"\"",c` → `["a,\"", "c"]` | Backslash escaping is currently unsupported as it is not part of the RFC 4180 standard and could lead to ambiguity.               |
 | Fields with comment-style trailing text | `a,b # note`                                       | Trailing comments are parsed verbatim and as part of the field. This should be avoided to prevent ambiguity.                      |
 
