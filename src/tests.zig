@@ -1,7 +1,7 @@
 //! Unit and Integration tests for the module scope `src/*.zig`
 //! [Released under GNU LGPLv3]
 const std = @import("std");
-const csv = @import("zig-csv.zig");
+const csv = @import("root.zig");
 const expect = std.testing.expect;
 const allocator = std.testing.allocator;
 

@@ -4,13 +4,24 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const mode = b.standardOptimizeOption(.{});
 
-    const lib = b.addStaticLibrary(.{
-        .name = "zig-cvs",
-        .root_source_file = b.path("src/zig-csv.zig"),
+    const module_root = b.addModule("zig_csv", .{
+        .root_source_file = b.path("src/root.zig"),
         .optimize = mode,
         .target = target,
     });
-    const lib_tests = b.addTest(.{ .root_source_file = b.path("src/tests.zig") });
+    const lib = b.addLibrary(.{
+        .name = "zig_csv",
+        .linkage = .static,
+        .root_module = module_root,
+    });
+    const module_tests = b.addModule("tests", .{
+        .root_source_file = b.path("src/tests.zig"),
+        .optimize = mode,
+        .target = target,
+    });
+    const lib_tests = b.addTest(.{
+        .root_module = module_tests,
+    });
 
     const install_docs = b.addInstallDirectory(.{
         .source_dir = lib.getEmittedDocs(),
