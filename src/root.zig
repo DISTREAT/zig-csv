@@ -57,16 +57,16 @@ pub const Table = struct {
             .settings = settings,
             .allocator = allocator,
             .expected_column_count = null,
-            .data = ArrayList(ArrayList([]const u8)).init(allocator),
+            .data = .empty,
         };
     }
 
     /// Deinitializes the internal arena allocator and parsed data
     pub fn deinit(self: *Table) void {
-        for (self.data.items) |row| {
-            row.deinit();
+        for (self.data.items) |*row| {
+            row.deinit(self.allocator);
         }
-        self.data.deinit();
+        self.data.deinit(self.allocator);
     }
 
     /// Load and append CSV data to the struct Table
@@ -87,12 +87,12 @@ pub const Table = struct {
     ///
     /// Returns the number of values parsed in the row.
     fn parseRow(self: *Table, row: []const u8) TableError!usize {
-        var values = ArrayList([]const u8).init(self.allocator);
+        var values: ArrayList([]const u8) = .empty;
         var columns = std.mem.splitSequence(u8, row, self.settings.delimiter);
         while (columns.next()) |value| {
-            try values.append(value);
+            try values.append(self.allocator, value);
         }
-        try self.data.append(values);
+        try self.data.append(self.allocator, values);
         return values.items.len;
     }
 
@@ -127,17 +127,17 @@ pub const Table = struct {
     /// ```
     pub fn findColumnIndexesByValue(self: Table, allocator: Allocator, row_index: usize, searched_value: []const u8) TableError![]usize {
         if (self.data.items.len < row_index) return TableError.RowNotFound;
-        var column_indexes = ArrayList(usize).init(allocator);
+        var column_indexes: ArrayList(usize) = .empty;
         for (self.data.items[row_index].items, 0..) |column_value, column_index| {
             if (std.mem.eql(u8, column_value, searched_value)) {
-                try column_indexes.append(column_index);
+                try column_indexes.append(allocator, column_index);
             }
         }
         if (column_indexes.items.len <= 0) {
-            column_indexes.deinit();
+            column_indexes.deinit(allocator);
             return TableError.ValueNotFound;
         }
-        return column_indexes.toOwnedSlice();
+        return column_indexes.toOwnedSlice(allocator);
     }
 
     /// Returns all row indexes that match a given value in a specific column
@@ -160,27 +160,27 @@ pub const Table = struct {
     /// ```
     pub fn findRowIndexesByValue(self: Table, allocator: Allocator, column_index: usize, searched_value: []const u8) TableError![]usize {
         if (column_index >= self.expected_column_count orelse 0) return TableError.ColumnNotFound;
-        var row_indexes = ArrayList(usize).init(allocator);
+        var row_indexes: ArrayList(usize) = .empty;
         for (self.data.items, 0..) |row, row_index| {
             if (std.mem.eql(u8, row.items[column_index], searched_value)) {
-                try row_indexes.append(row_index);
+                try row_indexes.append(allocator, row_index);
             }
         }
         if (row_indexes.items.len <= 0) {
-            row_indexes.deinit();
+            row_indexes.deinit(allocator);
             return TableError.ValueNotFound;
         }
-        return row_indexes.toOwnedSlice();
+        return row_indexes.toOwnedSlice(allocator);
     }
 
     /// Return the column at the provided index as a slice of values
     pub fn getColumnByIndex(self: Table, allocator: Allocator, column_index: usize) TableError![]const []const u8 {
         if (column_index > self.expected_column_count orelse 0) return TableError.ColumnNotFound;
-        var column_values = ArrayList([]const u8).init(allocator);
+        var column_values: ArrayList([]const u8) = .empty;
         for (self.data.items) |row| {
-            try column_values.append(row.items[column_index]);
+            try column_values.append(allocator, row.items[column_index]);
         }
-        return column_values.toOwnedSlice();
+        return column_values.toOwnedSlice(allocator);
     }
 
     /// Return the row at the provided index as a slice of values
@@ -199,9 +199,9 @@ pub const Table = struct {
         const target_index = row_index orelse self.data.items.len;
         if (self.expected_column_count == null) return TableError.NoData;
         if (target_index > self.data.items.len) return TableError.RowNotFound;
-        var empty_row = ArrayList([]const u8).init(self.allocator);
-        for (0..self.expected_column_count orelse unreachable) |_| try empty_row.append("");
-        try self.data.insert(target_index, empty_row);
+        var empty_row: ArrayList([]const u8) = .empty;
+        for (0..self.expected_column_count orelse unreachable) |_| try empty_row.append(self.allocator, "");
+        try self.data.insert(self.allocator, target_index, empty_row);
         return target_index;
     }
 
@@ -215,7 +215,7 @@ pub const Table = struct {
         const target_index = column_index orelse self.expected_column_count orelse return TableError.NoData;
         if (target_index > self.expected_column_count orelse unreachable) return TableError.ColumnNotFound;
         for (self.data.items) |*row| {
-            try row.insert(target_index, "");
+            try row.insert(self.allocator, target_index, "");
         }
         self.expected_column_count = (self.expected_column_count orelse unreachable) + 1;
         return target_index;
@@ -247,24 +247,24 @@ pub const Table = struct {
     /// All prior row indexes will be invalidated.
     pub fn deleteRowByIndex(self: *Table, row_index: usize) TableError!void {
         if (row_index >= self.data.items.len) return TableError.RowNotFound;
-        self.data.items[row_index].deinit();
+        self.data.items[row_index].deinit(self.allocator);
         _ = self.data.orderedRemove(row_index);
     }
 
     /// Returns a slice of bytes containing the CSV data stored in the struct Table.
     pub fn exportCSV(self: *Table, allocator: Allocator) TableError![]const u8 {
-        var csv = ArrayList(u8).init(allocator);
+        var csv: ArrayList(u8) = .empty;
         for (self.data.items, 0..) |row, row_index| {
             if (row_index > 0) {
-                try csv.appendSlice(self.settings.terminator);
+                try csv.appendSlice(allocator, self.settings.terminator);
             }
             for (row.items, 0..) |column, column_index| {
                 if (column_index > 0) {
-                    try csv.appendSlice(self.settings.delimiter);
+                    try csv.appendSlice(allocator, self.settings.delimiter);
                 }
-                try csv.appendSlice(column);
+                try csv.appendSlice(allocator, column);
             }
         }
-        return csv.toOwnedSlice();
+        return csv.toOwnedSlice(allocator);
     }
 };

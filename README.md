@@ -15,12 +15,27 @@ The design of this library is guided by the principles outlined in the [CSV Pars
 which emphasizes data integrity, fail-fast behavior, and low-level access to parsed data.
 This design approach ensures the library is compatible with real-world CSV data while avoiding ambiguity in parsing.
 
+## Installation
+
+First, add the dependency to your `build.zig.zon`:
+
+```sh
+zig fetch --save git+https://github.com/DISTREAT/zig-csv
+```
+
+Then, add the package to your `build.zig`:
+
+```zig
+const zig_csv = b.dependency("zig_csv", .{});
+exe.root_module.addImport("zig_csv", zig_csv.module("zig_csv"));
+```
+
 ## Usage
 
 ```zig
 const std = @import("std");
-const csv = @import("zig-csv");
-const allocator = std.heap.allocator;
+const csv = @import("zig_csv");
+const allocator = std.heap.page_allocator;
 
 // Parse CSV data
 var table = csv.Table.init(allocator, csv.Settings.default());
@@ -33,9 +48,9 @@ try table.parse(
 );
 
 // Change the color of the dog to "white"
-const animal_col = try table.findColumnIndexesByValue(allocator, 0, "animal")[0];
-const dog_row = try table.findRowIndexesByValue(allocator, animal_col, "dog")[0];
-const color_col = try table.findColumnIndexesByValue(allocator, 0, "color")[0];
+const animal_col = (try table.findColumnIndexesByValue(allocator, 0, "animal"))[0];
+const dog_row = (try table.findRowIndexesByValue(allocator, animal_col, "dog"))[0];
+const color_col = (try table.findColumnIndexesByValue(allocator, 0, "color"))[0];
 try table.replaceValue(dog_row, color_col, "white");
 
 // Add a new animal
