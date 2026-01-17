@@ -58,7 +58,7 @@ const Animal = struct {
 };
 
 // Parse CSV data into a StructuredTable
-var table = csv.schema.StructuredTable(Animal).init(
+var table = csv.StructuredTable(Animal).init(
     allocator,
     csv.Settings.default()
 );
