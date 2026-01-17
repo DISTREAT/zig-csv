@@ -225,8 +225,8 @@ pub const Table = struct {
     pub fn replaceValue(self: *Table, row_index: usize, column_index: usize, new_value: []const u8) TableError!void {
         if (row_index >= self.data.items.len) return TableError.RowNotFound;
         if (column_index >= self.expected_column_count orelse 0) return TableError.ColumnNotFound;
-        if (std.mem.count(u8, new_value, self.settings.delimiter) != 0) return TableError.IllegalCharacter;
-        if (std.mem.count(u8, new_value, self.settings.terminator) != 0) return TableError.IllegalCharacter;
+        if (std.mem.indexOf(u8, new_value, self.settings.delimiter) != null) return TableError.IllegalCharacter;
+        if (std.mem.indexOf(u8, new_value, self.settings.terminator) != null) return TableError.IllegalCharacter;
         self.data.items[row_index].items[column_index] = new_value;
     }
 
