@@ -77,15 +77,40 @@ pub fn StructuredTable(table_schema: type) type {
 
         /// Parse CSV data into the StructuredTable
         pub fn parse(self: *Self, csv_data: []const u8) (TableError || StructureError)!void {
+            // TODO: `schema.zig` currently imports `root.zig` while `root.zig` imports
+            // `schema.zig`, producing a circular import. Consider moving a shared
+            // type or API into a separate module to break the cycle.
             try self.table.parse(csv_data);
             if (self.table.getColumnCount() != schema_info.@"struct".fields.len) return StructureError.InvalidColumnCount;
         }
 
         /// Get the number of data rows in the StructuredTable
+        ///
+        /// StructuredTable exposes only data rows (the header row at table index 0
+        /// is excluded). This returns the count of data rows, guarding against
+        /// unsigned underflow when the table is empty.
         pub fn getRowCount(self: Self) usize {
             const count = self.table.getRowCount();
             if (count == 0) return 0;
             return count - 1;
+        }
+
+        /// Convert a data-row index to the corresponding underlying table index.
+        ///
+        /// The underlying `Table` stores the header row at table index 0, while
+        /// data rows start at 1. This helper maps a data-row index (or `null` to
+        /// indicate append) to the `Table` insert index.
+        fn headerAwareToTableIndex(data_index: ?usize) ?usize {
+            // If `data_index` is null, that represents "append" — forward null to Table.insertEmptyRow.
+            return if (data_index) |i| i + 1 else null;
+        }
+
+        /// Convert an underlying table index to a data-row index.
+        ///
+        /// Returns `null` when the provided table index refers to the header row (0).
+        fn headerAwareToDataIndex(table_index: usize) ?usize {
+            if (table_index == 0) return null;
+            return table_index - 1;
         }
 
         /// Get a structured row from the StructuredTable by index
@@ -270,7 +295,12 @@ pub fn StructuredTable(table_schema: type) type {
 
         /// Insert a structured row into the StructuredTable at the specified index
         ///
-        /// If row_index is null, the row is appended to the end of the table
+        /// If `row_index` is `null`, the row is appended to the end of the table.
+        ///
+        /// Notes on indexing:
+        /// - The underlying `Table` stores a header row at table index 0.
+        /// - StructuredTable's `row_index` values are 0-based and refer only to data rows
+        ///   (so structured `0` corresponds to table index `1`).
         pub fn insertRow(self: *Self, row_index: ?usize, row: table_schema) TableError!void {
             if (self.table.getRowCount() == 0) {
                 _ = try self.table.insertEmptyRow(null);
@@ -279,8 +309,10 @@ pub fn StructuredTable(table_schema: type) type {
                     try self.table.replaceValue(0, header_row_index, field.name);
                 }
             }
-            const index = self.table.insertEmptyRow(if (row_index) |index| index + 1 else null) catch return TableError.OutOfMemory;
-            _ = try self.editRow(index - 1, row);
+            const table_insert_idx = headerAwareToTableIndex(row_index);
+            const index = self.table.insertEmptyRow(table_insert_idx) catch return TableError.OutOfMemory;
+            const data_index = headerAwareToDataIndex(index) orelse return TableError.RowNotFound;
+            _ = try self.editRow(data_index, row);
         }
 
         /// Delete a structured row from the StructuredTable by index
