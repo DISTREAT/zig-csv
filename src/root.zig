@@ -30,8 +30,6 @@ pub const TableError = error{
     IllegalCharacter,
     /// A row is inconsistent with the number of values previously parsed
     InconsistentRowLength,
-    /// Data must be loaded first to perform the requested operation
-    NoData,
     /// Could not allocate required memory
     OutOfMemory,
     /// The requested row was not found
@@ -102,9 +100,8 @@ pub const Table = struct {
     }
 
     /// Returns the number of rows in the table
-    pub fn getColumnCount(self: Table) TableError!usize {
-        if (self.expected_column_count == null) return TableError.NoData;
-        return self.expected_column_count orelse unreachable;
+    pub fn getColumnCount(self: Table) usize {
+        return self.expected_column_count orelse 0;
     }
 
     /// Returns all columns indexes that match a given value in a specific row
@@ -159,7 +156,8 @@ pub const Table = struct {
     /// assert(indexes == &.{1});
     /// ```
     pub fn findRowIndexesByValue(self: Table, allocator: Allocator, column_index: usize, searched_value: []const u8) TableError![]usize {
-        if (column_index >= self.expected_column_count orelse 0) return TableError.ColumnNotFound;
+        if (self.expected_column_count == null) return TableError.ColumnNotFound;
+        if (column_index >= self.expected_column_count orelse unreachable) return TableError.ColumnNotFound;
         var row_indexes: ArrayList(usize) = .empty;
         for (self.data.items, 0..) |row, row_index| {
             if (std.mem.eql(u8, row.items[column_index], searched_value)) {
@@ -175,7 +173,8 @@ pub const Table = struct {
 
     /// Return the column at the provided index as a slice of values
     pub fn getColumnByIndex(self: Table, allocator: Allocator, column_index: usize) TableError![]const []const u8 {
-        if (column_index > self.expected_column_count orelse 0) return TableError.ColumnNotFound;
+        if (self.expected_column_count == null) return TableError.ColumnNotFound;
+        if (column_index > self.expected_column_count orelse unreachable) return TableError.ColumnNotFound;
         var column_values: ArrayList([]const u8) = .empty;
         for (self.data.items) |row| {
             try column_values.append(allocator, row.items[column_index]);
@@ -197,10 +196,9 @@ pub const Table = struct {
     /// Returns the index of the newly inserted row.
     pub fn insertEmptyRow(self: *Table, row_index: ?usize) TableError!usize {
         const target_index = row_index orelse self.data.items.len;
-        if (self.expected_column_count == null) return TableError.NoData;
         if (target_index > self.data.items.len) return TableError.RowNotFound;
         var empty_row: ArrayList([]const u8) = .empty;
-        for (0..self.expected_column_count orelse unreachable) |_| try empty_row.append(self.allocator, "");
+        for (0..self.expected_column_count orelse 0) |_| try empty_row.append(self.allocator, "");
         try self.data.insert(self.allocator, target_index, empty_row);
         return target_index;
     }
@@ -212,12 +210,12 @@ pub const Table = struct {
     ///
     /// Returns the index of the newly inserted column.
     pub fn insertEmptyColumn(self: *Table, column_index: ?usize) TableError!usize {
-        const target_index = column_index orelse self.expected_column_count orelse return TableError.NoData;
-        if (target_index > self.expected_column_count orelse unreachable) return TableError.ColumnNotFound;
+        const target_index = column_index orelse self.expected_column_count orelse 0;
+        if (target_index > self.expected_column_count orelse 0) return TableError.ColumnNotFound;
         for (self.data.items) |*row| {
             try row.insert(self.allocator, target_index, "");
         }
-        self.expected_column_count = (self.expected_column_count orelse unreachable) + 1;
+        self.expected_column_count = (self.expected_column_count orelse 0) + 1;
         return target_index;
     }
 
@@ -234,12 +232,11 @@ pub const Table = struct {
     ///
     /// All prior column indexes will be invalidated.
     pub fn deleteColumnByIndex(self: *Table, column_index: usize) TableError!void {
-        if (self.expected_column_count == null) return TableError.NoData;
-        if (column_index >= self.expected_column_count orelse unreachable) return TableError.ColumnNotFound;
+        if (column_index >= self.expected_column_count orelse 0) return TableError.ColumnNotFound;
         for (self.data.items) |*row| {
             _ = row.orderedRemove(column_index);
         }
-        self.expected_column_count = (self.expected_column_count orelse unreachable) - 1;
+        self.expected_column_count = (self.expected_column_count orelse 0) - 1;
     }
 
     /// Remove a row by its index
