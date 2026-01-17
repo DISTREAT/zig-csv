@@ -5,6 +5,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 
+pub const schema = @import("schema.zig");
+
 /// A structure for storing settings for use with struct Table
 pub const Settings = struct {
     /// The delimiter that separates the values (aka. separator)
