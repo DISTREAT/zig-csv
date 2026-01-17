@@ -125,7 +125,7 @@ pub const Table = struct {
     /// assert(indexes == &.{0});
     /// ```
     pub fn findColumnIndexesByValue(self: Table, allocator: Allocator, row_index: usize, searched_value: []const u8) TableError![]usize {
-        if (self.data.items.len < row_index) return TableError.RowNotFound;
+        if (row_index >= self.data.items.len) return TableError.RowNotFound;
         var column_indexes: ArrayList(usize) = .empty;
         for (self.data.items[row_index].items, 0..) |column_value, column_index| {
             if (std.mem.eql(u8, column_value, searched_value)) {
