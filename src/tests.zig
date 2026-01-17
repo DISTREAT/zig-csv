@@ -4,7 +4,7 @@ const std = @import("std");
 const csv = @import("root.zig");
 const expect = std.testing.expect;
 const allocator = std.testing.allocator;
-const StructuredTable = csv.schema.StructuredTable;
+const StructuredTable = csv.StructuredTable;
 
 test "Initialize Table using Table.parse and export to CSV via Table.exportCSV" {
     var table = csv.Table.init(allocator, csv.Settings.default());
@@ -686,7 +686,7 @@ test "StructuredTable: Handle parsing error due to invalid csv type" {
     );
     const result = try table.getRow(0);
     const err = result.@"error";
-    try expect(err.kind == csv.schema.StructureError.UnexpectedType);
+    try expect(err.kind == csv.StructureError.UnexpectedType);
     try expect(std.mem.eql(u8, err.csv_value.?, "invalid_age"));
     try expect(std.mem.eql(u8, err.field_name.?, "age"));
     try expect(std.mem.eql(u8, err.field_type.?, "u8"));

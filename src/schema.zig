@@ -1,10 +1,10 @@
 const std = @import("std");
-const csv = @import("root.zig");
+const table = @import("table.zig");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
-const Table = csv.Table;
-const TableError = csv.TableError;
-const Settings = csv.Settings;
+const Table = table.Table;
+const TableError = table.TableError;
+const Settings = table.Settings;
 
 /// Errors that can occur when mapping CSV data to a structured type
 pub const StructureError = error{
@@ -77,9 +77,6 @@ pub fn StructuredTable(table_schema: type) type {
 
         /// Parse CSV data into the StructuredTable
         pub fn parse(self: *Self, csv_data: []const u8) (TableError || StructureError)!void {
-            // TODO: `schema.zig` currently imports `root.zig` while `root.zig` imports
-            // `schema.zig`, producing a circular import. Consider moving a shared
-            // type or API into a separate module to break the cycle.
             try self.table.parse(csv_data);
             if (self.table.getColumnCount() != schema_info.@"struct".fields.len) return StructureError.InvalidColumnCount;
         }
