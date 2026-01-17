@@ -32,6 +32,83 @@ exe.root_module.addImport("zig_csv", zig_csv.module("zig_csv"));
 
 ## Usage
 
+The library provides two primary types for working with CSV data:
+`StructuredTable` and `Table`.
+
+The differences between them are as follows:
+- `StructuredTable` requires a predefined schema,
+  allowing for type-safe parsing and manipulation of CSV data.
+- `Table` offers a more flexible approach, enabling dynamic
+  handling of CSV data without a predefined schema.
+
+### StructuredTable
+
+The `StructuredTable` allows you to define a schema for your CSV data,
+enabling type-safe parsing and manipulation.
+
+```zig
+const std = @import("std");
+const csv = @import("zig_csv");
+const allocator = std.heap.page_allocator;
+
+// Define a schema for the CSV data
+const Animal = struct {
+    id: i32,
+    name: []const u8,
+};
+
+// Parse CSV data into a StructuredTable
+var table = csv.schema.StructuredTable(Animal).init(
+    allocator,
+    csv.Settings.default()
+);
+defer table.deinit();
+try table.parse(
+    \\id,name
+    \\1,dog
+    \\2,cat
+    \\3,bird
+);
+
+// Modify the name of the animal with id 2
+for (0..table.getRowCount()) |index| {
+    // Retrieve the row at the current index.
+    const row = try table.getRow(index);
+    if (row == .@"error") {
+        // If the row structure doesn't match the schema, handle the error.
+        break;
+    }
+    // Access the parsed Animal struct from the row.
+    var animal = row.ok.value;
+    // Look for the animal with id == 2.
+    if (animal.id != 2) continue;
+
+    // Change the animal's name to "mouse".
+    animal.name = "mouse";
+    // Attempt to write the modified struct back to the table.
+    const result = try table.editRow(index, animal);
+    if (result == .@"error") {
+        // If the new struct doesn't match the schema, handle the error.
+    }
+    // Stop after editing the first matching row.
+    break;
+}
+
+// Export the table back to CSV
+const exported_csv = try table.exportCSV(allocator);
+defer allocator.free(exported_csv);
+std.debug.print("Exported CSV:\n{s}\n", .{exported_csv});
+// id,name
+// 1,dog
+// 2,mouse
+// 3,bird
+
+```
+
+### Table
+
+The `Table` type provides a flexible way to work with CSV data without a predefined schema.
+
 ```zig
 const std = @import("std");
 const csv = @import("zig_csv");
