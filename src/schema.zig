@@ -314,7 +314,7 @@ pub fn StructuredTable(table_schema: type) type {
                 }
             }
             const table_index = if (row_index) |index| headerAwareToTableIndex(index) else null;
-            const index = self.table.insertEmptyRow(table_index) catch return TableError.OutOfMemory;
+            const index = try self.table.insertEmptyRow(table_index);
             const data_index = headerAwareToDataIndex(index) orelse return TableError.RowNotFound;
             _ = try self.editRow(data_index, row);
         }
