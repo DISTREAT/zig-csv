@@ -21,7 +21,7 @@ pub const StructureError = error{
 /// Result of parsing a row into a structured type
 /// Used to provide detailed error information when parsing fails
 pub fn ParseResult(table_schema: type) type {
-    return union {
+    return union(enum) {
         /// Successfully parsed structured value
         ok: struct {
             /// The parsed structured value
@@ -30,7 +30,7 @@ pub fn ParseResult(table_schema: type) type {
         /// Error occurred while parsing structured value
         @"error": struct {
             /// The kind of structure error that occurred
-            kind: StructureError,
+            kind: (StructureError || TableError),
             /// The name of the field that caused the error
             field_name: ?[]const u8,
             /// The expected type of the field that caused the error
@@ -95,11 +95,9 @@ pub fn StructuredTable(table_schema: type) type {
         /// Convert a data-row index to the corresponding underlying table index.
         ///
         /// The underlying `Table` stores the header row at table index 0, while
-        /// data rows start at 1. This helper maps a data-row index (or `null` to
-        /// indicate append) to the `Table` insert index.
-        fn headerAwareToTableIndex(data_index: ?usize) ?usize {
-            // If `data_index` is null, that represents "append" — forward null to Table.insertEmptyRow.
-            return if (data_index) |i| i + 1 else null;
+        /// data rows start at 1. This helper maps a data-row index to the `Table` insert index.
+        fn headerAwareToTableIndex(data_index: usize) usize {
+            return data_index + 1;
         }
 
         /// Convert an underlying table index to a data-row index.
@@ -108,6 +106,85 @@ pub fn StructuredTable(table_schema: type) type {
         fn headerAwareToDataIndex(table_index: usize) ?usize {
             if (table_index == 0) return null;
             return table_index - 1;
+        }
+
+        /// Deserialize a CSV value into the appropriate field type
+        fn deserializeCsvValue(self: Self, comptime T: type, value: []const u8) (TableError || StructureError)!T {
+            const type_info = @typeInfo(T);
+            if (type_info == .pointer and
+                type_info.pointer.size == .slice and
+                type_info.pointer.child == u8)
+            {
+                return value;
+            }
+            switch (type_info) {
+                .optional => {
+                    const child_type = type_info.optional.child;
+                    if (value.len == 0) {
+                        return null;
+                    } else {
+                        return try self.deserializeCsvValue(child_type, value);
+                    }
+                },
+                .bool => {
+                    const lower = std.ascii.allocLowerString(self.allocator, value) catch return TableError.OutOfMemory;
+                    defer self.allocator.free(lower);
+                    for ([_][]const u8{ "true", "1", "yes", "y" }) |true_word| {
+                        if (std.mem.eql(u8, true_word, lower)) {
+                            return true;
+                        }
+                    }
+                    for ([_][]const u8{ "false", "0", "no", "n" }) |false_word| {
+                        if (std.mem.eql(u8, false_word, lower)) {
+                            return false;
+                        }
+                    }
+                    return StructureError.UnexpectedType;
+                },
+                .int => {
+                    return std.fmt.parseInt(T, value, 0) catch StructureError.UnexpectedType;
+                },
+                .float => {
+                    return std.fmt.parseFloat(T, value) catch StructureError.UnexpectedType;
+                },
+                else => {
+                    @compileError(std.fmt.comptimePrint("unsupported field type for '{}'", .{@typeName(type_info)}));
+                },
+            }
+        }
+
+        /// Serialize a field value into a CSV-compatible string
+        fn serializeCsvValue(self: *Self, comptime T: type, value: T) TableError![]const u8 {
+            const type_info = @typeInfo(T);
+            if (type_info == .pointer and
+                type_info.pointer.size == .slice and
+                type_info.pointer.child == u8)
+            {
+                return value;
+            }
+            switch (type_info) {
+                .optional => {
+                    const child_type = type_info.optional.child;
+                    if (value == null) {
+                        return "";
+                    } else {
+                        return try self.serializeCsvValue(child_type, value.?);
+                    }
+                },
+                .bool => {
+                    if (value) {
+                        return "true";
+                    } else {
+                        return "false";
+                    }
+                },
+                .int, .float => {
+                    return std.fmt.allocPrint(self.arena_allocator.allocator(), "{d}", .{value}) catch TableError.OutOfMemory;
+                },
+                else => {
+                    @compileError(std.fmt.comptimePrint("unsupported field type for '{}'", .{@typeName(type_info)}));
+                },
+            }
         }
 
         /// Get a structured row from the StructuredTable by index
@@ -131,7 +208,6 @@ pub fn StructuredTable(table_schema: type) type {
             var out: table_schema = undefined;
             inline for (schema_info.@"struct".fields) |field| {
                 const field_name = field.name;
-                const field_type = @typeInfo(field.type);
                 const column_indexes = self.table.findColumnIndexesByValue(self.allocator, 0, field_name) catch return ParseResult(table_schema){
                     .@"error" = .{
                         .kind = StructureError.MissingColumn,
@@ -159,63 +235,15 @@ pub fn StructuredTable(table_schema: type) type {
                 };
                 defer self.allocator.free(rows);
                 const value = rows[row_index + 1];
-                if (field_type == .pointer and
-                    field_type.pointer.size == .slice and
-                    field_type.pointer.child == u8)
-                {
-                    @field(out, field_name) = value;
-                    continue;
-                }
-                switch (field_type) {
-                    .bool => {
-                        const lower = std.ascii.allocLowerString(self.allocator, value) catch return TableError.OutOfMemory;
-                        defer self.allocator.free(lower);
-                        var matched = false;
-                        for ([_][]const u8{ "true", "1", "yes", "y" }) |true_word| {
-                            if (std.mem.eql(u8, true_word, lower)) {
-                                @field(out, field_name) = true;
-                                matched = true;
-                            }
-                        }
-                        for ([_][]const u8{ "false", "0", "no", "n" }) |false_word| {
-                            if (std.mem.eql(u8, false_word, lower)) {
-                                @field(out, field_name) = false;
-                                matched = true;
-                            }
-                        }
-                        if (!matched) return ParseResult(table_schema){
-                            .@"error" = .{
-                                .kind = StructureError.UnexpectedType,
-                                .field_name = field_name,
-                                .field_type = @typeName(field.type),
-                                .csv_value = value,
-                            },
-                        };
+                const parsed = (&self).deserializeCsvValue(field.type, value) catch |err| return ParseResult(table_schema){
+                    .@"error" = .{
+                        .kind = err,
+                        .field_name = field_name,
+                        .field_type = @typeName(field.type),
+                        .csv_value = value,
                     },
-                    .int => {
-                        @field(out, field_name) = std.fmt.parseInt(field.type, value, 0) catch return ParseResult(table_schema){
-                            .@"error" = .{
-                                .kind = StructureError.UnexpectedType,
-                                .field_name = field_name,
-                                .field_type = @typeName(field.type),
-                                .csv_value = value,
-                            },
-                        };
-                    },
-                    .float => {
-                        @field(out, field_name) = std.fmt.parseFloat(field.type, value) catch return ParseResult(table_schema){
-                            .@"error" = .{
-                                .kind = StructureError.UnexpectedType,
-                                .field_name = field_name,
-                                .field_type = @typeName(field.type),
-                                .csv_value = value,
-                            },
-                        };
-                    },
-                    else => {
-                        @compileError(std.fmt.comptimePrint("unsupported field type for '{}'", .{@typeName(field.type)}));
-                    },
-                }
+                };
+                @field(out, field_name) = parsed;
             }
             return ParseResult(table_schema){
                 .ok = .{
@@ -240,7 +268,6 @@ pub fn StructuredTable(table_schema: type) type {
             if (row_index >= self.getRowCount()) return TableError.RowNotFound;
             inline for (schema_info.@"struct".fields) |field| {
                 const field_name = field.name;
-                const field_type = @typeInfo(field.type);
                 const column_indexes = self.table.findColumnIndexesByValue(self.allocator, 0, field_name) catch return ParseResult(table_schema){
                     .@"error" = .{
                         .kind = StructureError.MissingColumn,
@@ -259,29 +286,9 @@ pub fn StructuredTable(table_schema: type) type {
                     },
                 };
                 const column_index = column_indexes[0];
-                if (field_type == .pointer and
-                    field_type.pointer.size == .slice and
-                    field_type.pointer.child == u8)
-                {
-                    try self.table.replaceValue(row_index + 1, column_index, @field(row, field_name));
-                    continue;
-                }
-                switch (field_type) {
-                    .bool => {
-                        if (@field(row, field_name)) {
-                            try self.table.replaceValue(row_index + 1, column_index, "true");
-                        } else {
-                            try self.table.replaceValue(row_index + 1, column_index, "false");
-                        }
-                    },
-                    .int, .float => {
-                        const formatted = std.fmt.allocPrint(self.arena_allocator.allocator(), "{d}", .{@field(row, field_name)}) catch return TableError.OutOfMemory;
-                        try self.table.replaceValue(row_index + 1, column_index, formatted);
-                    },
-                    else => {
-                        @compileError(std.fmt.comptimePrint("unsupported field type for '{}'", .{@typeName(field.type)}));
-                    },
-                }
+                const table_index = headerAwareToTableIndex(row_index);
+                const value = try self.serializeCsvValue(field.type, @field(row, field_name));
+                try self.table.replaceValue(table_index, column_index, value);
             }
             return ParseResult(table_schema){
                 .ok = .{
@@ -306,8 +313,8 @@ pub fn StructuredTable(table_schema: type) type {
                     try self.table.replaceValue(0, header_row_index, field.name);
                 }
             }
-            const table_insert_idx = headerAwareToTableIndex(row_index);
-            const index = self.table.insertEmptyRow(table_insert_idx) catch return TableError.OutOfMemory;
+            const table_index = if (row_index) |index| headerAwareToTableIndex(index) else null;
+            const index = self.table.insertEmptyRow(table_index) catch return TableError.OutOfMemory;
             const data_index = headerAwareToDataIndex(index) orelse return TableError.RowNotFound;
             _ = try self.editRow(data_index, row);
         }
