@@ -148,7 +148,7 @@ pub fn StructuredTable(table_schema: type) type {
                     return std.fmt.parseFloat(T, value) catch StructureError.UnexpectedType;
                 },
                 else => {
-                    @compileError(std.fmt.comptimePrint("unsupported field type for '{}'", .{@typeName(type_info)}));
+                    @compileError(std.fmt.comptimePrint("unsupported field type for '{}'", .{@typeName(T)}));
                 },
             }
         }
@@ -182,7 +182,7 @@ pub fn StructuredTable(table_schema: type) type {
                     return std.fmt.allocPrint(self.arena_allocator.allocator(), "{d}", .{value}) catch TableError.OutOfMemory;
                 },
                 else => {
-                    @compileError(std.fmt.comptimePrint("unsupported field type for '{}'", .{@typeName(type_info)}));
+                    @compileError(std.fmt.comptimePrint("unsupported field type for '{}'", .{@typeName(T)}));
                 },
             }
         }
