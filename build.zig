@@ -15,13 +15,14 @@ pub fn build(b: *std.Build) void {
         .root_module = module_root,
     });
     const module_tests = b.addModule("tests", .{
-        .root_source_file = b.path("src/tests.zig"),
+        .root_source_file = b.path("src/tests/root.zig"),
         .optimize = mode,
         .target = target,
     });
     const lib_tests = b.addTest(.{
         .root_module = module_tests,
     });
+    lib_tests.root_module.addImport("zig_csv", module_root);
 
     const install_docs = b.addInstallDirectory(.{
         .source_dir = lib.getEmittedDocs(),
