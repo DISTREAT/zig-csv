@@ -196,7 +196,7 @@ pub fn StructuredTable(table_schema: type) type {
         /// try table.parse(csv_data);
         /// for (0..table.getRowCount()) |index| {
         ///     const row_result = try table.getRow(index);
-        ///     if (row_result.@tag == .@"error") {
+        ///     if (row_result == .@"error") {
         ///         // Handle error
         ///         break;
         ///     }
