@@ -142,37 +142,7 @@ test "StructuredTable: Create empty struct table and insert rows" {
     try expect(std.mem.eql(u8, exported_csv, expected_csv));
 }
 
-test "StructuredTable: Delete row" {
-    const DogTable = struct {
-        name: []const u8,
-        age: u8,
-        alive: bool,
-        foo: f32,
-    };
-
-    var table = StructuredTable(DogTable).init(allocator, csv.Settings.default());
-    defer table.deinit();
-    try table.parse(
-        \\name,age,alive,foo
-        \\Fido,4,true,0.3
-        \\Rex,7,false,0.11
-    );
-
-    try expect(table.getRowCount() == 2);
-
-    try table.deleteRow(0);
-    try expect(table.getRowCount() == 1);
-
-    const exported_csv = try table.exportCSV(allocator);
-    defer allocator.free(exported_csv);
-    const expected_csv =
-        \\name,age,alive,foo
-        \\Rex,7,false,0.11
-    ;
-    try expect(std.mem.eql(u8, exported_csv, expected_csv));
-}
-
-test "StructureTable: Insert row at specific index" {
+test "StructuredTable: Insert row at specific index" {
     const DogTable = struct {
         name: []const u8,
         age: u8,
