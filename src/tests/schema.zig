@@ -230,3 +230,69 @@ test "StructuredTable: Handle parsing error due to invalid csv type" {
     try expect(std.mem.eql(u8, err.field_name.?, "age"));
     try expect(std.mem.eql(u8, err.field_type.?, "u8"));
 }
+
+test "StructuredTable: Optional fields parse and null behavior" {
+    const DogTableOpt = struct {
+        name: ?[]const u8,
+        age: ?u8,
+        alive: ?bool,
+        foo: ?f32,
+    };
+
+    var table = StructuredTable(DogTableOpt).init(allocator, csv.Settings.default());
+    defer table.deinit();
+    try table.parse(
+        \\name,age,alive,foo
+        \\Fido,4,Yes,0.3
+        \\,,,
+    );
+
+    try expect(table.getRowCount() == 2);
+
+    const row_0 = try table.getRow(0);
+    const value_0 = row_0.ok.value;
+    try expect(std.mem.eql(u8, value_0.name.?, "Fido"));
+    try expect(value_0.age.? == 4);
+    try expect(value_0.alive.?);
+    try expect(value_0.foo.? == 0.3);
+
+    const row_1 = try table.getRow(1);
+    const value_1 = row_1.ok.value;
+    try expect(value_1.name == null);
+    try expect(value_1.age == null);
+    try expect(value_1.alive == null);
+    try expect(value_1.foo == null);
+}
+
+test "StructuredTable: Optional fields edit writes empty when null" {
+    const DogTableOpt = struct {
+        name: ?[]const u8,
+        age: ?u8,
+        alive: ?bool,
+        foo: ?f32,
+    };
+
+    var table = StructuredTable(DogTableOpt).init(allocator, csv.Settings.default());
+    defer table.deinit();
+    try table.parse(
+        \\name,age,alive,foo
+        \\Fido,4,true,0.3
+    );
+
+    const row = try table.getRow(0);
+    var value = row.ok.value;
+    value.name = null;
+    value.age = null;
+    value.alive = null;
+    value.foo = null;
+
+    _ = try table.editRow(0, value);
+
+    const exported = try table.exportCSV(allocator);
+    defer allocator.free(exported);
+    const expected_csv =
+        \\name,age,alive,foo
+        \\,,,
+    ;
+    try expect(std.mem.eql(u8, exported, expected_csv));
+}

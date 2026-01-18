@@ -55,6 +55,7 @@ const allocator = std.heap.page_allocator;
 const Animal = struct {
     id: i32,
     name: []const u8,
+    happy: ?bool,
 };
 
 // Parse CSV data into a StructuredTable
@@ -64,10 +65,10 @@ var table = csv.StructuredTable(Animal).init(
 );
 defer table.deinit();
 try table.parse(
-    \\id,name
-    \\1,dog
-    \\2,cat
-    \\3,bird
+    \\id,name,happy
+    \\1,dog,
+    \\2,cat,
+    \\3,bird,
 );
 
 // Modify the name of the animal with id 2
@@ -98,10 +99,10 @@ for (0..table.getRowCount()) |index| {
 const exported_csv = try table.exportCSV(allocator);
 defer allocator.free(exported_csv);
 std.debug.print("Exported CSV:\n{s}\n", .{exported_csv});
-// id,name
-// 1,dog
-// 2,mouse
-// 3,bird
+// id,name,happy
+// 1,dog,
+// 2,mouse,
+// 3,bird,
 
 ```
 
