@@ -51,7 +51,7 @@ pub const Table = struct {
     }
 
     pub fn parse(self: *Table, csv_data: []const u8) TableError!void {
-        const csv_data_sanitized = std.mem.trimRight(u8, csv_data, self.settings.terminator);
+        const csv_data_sanitized = std.mem.trimEnd(u8, csv_data, self.settings.terminator);
         var rows = std.mem.splitSequence(u8, csv_data_sanitized, self.settings.terminator);
         while (rows.next()) |row| {
             const value_count = try self.parseRow(row);
