@@ -20,7 +20,7 @@ test "Initialize Table using Table.parse and export to CSV via Table.exportCSV" 
 
     const exported: []const u8 = try table.exportCSV(allocator);
     defer allocator.free(exported);
-    try expect(std.mem.eql(u8, exported, csv_data));
+    try expectEqualString(csv_data, exported);
 }
 
 test "Initialize Table using Table.parseRow and export to CSV via Table.exportCSV" {
@@ -36,7 +36,7 @@ test "Initialize Table using Table.parseRow and export to CSV via Table.exportCS
 
     const exported: []const u8 = try table.exportCSV(allocator);
     defer allocator.free(exported);
-    try expect(std.mem.eql(u8, exported, csv_data));
+    try expectEqualString(csv_data, exported);
 }
 
 test "Initialize Table using custom delimiter and terminator and export to CSV via Table.exportCSV" {
@@ -54,7 +54,7 @@ test "Initialize Table using custom delimiter and terminator and export to CSV v
 
     const exported: []const u8 = try table.exportCSV(allocator);
     defer allocator.free(exported);
-    try expect(std.mem.eql(u8, exported, csv_data));
+    try expectEqualString(csv_data, exported);
 }
 
 test "Get number of rows using Table.getRowCount" {
@@ -159,13 +159,13 @@ test "Get column by index using Table.getColumnByIndex" {
 
     const column_0 = try table.getColumnByIndex(arena_allocator, 0);
     try expect(column_0.len == 2);
-    try expect(std.mem.eql(u8, column_0[0], "id"));
-    try expect(std.mem.eql(u8, column_0[1], "0"));
+    try expectEqualString("id", column_0[0]);
+    try expectEqualString("0", column_0[1]);
 
     const column_1 = try table.getColumnByIndex(arena_allocator, 1);
     try expect(column_1.len == 2);
-    try expect(std.mem.eql(u8, column_1[0], "letter"));
-    try expect(std.mem.eql(u8, column_1[1], "a"));
+    try expectEqualString("letter", column_1[0]);
+    try expectEqualString("a", column_1[1]);
 }
 
 test "Get row by index using Table.getRowByIndex" {
@@ -178,13 +178,13 @@ test "Get row by index using Table.getRowByIndex" {
 
     const row_0 = try table.getRowByIndex(0);
     try expect(row_0.len == 2);
-    try expect(std.mem.eql(u8, row_0[0], "id"));
-    try expect(std.mem.eql(u8, row_0[1], "letter"));
+    try expectEqualString("id", row_0[0]);
+    try expectEqualString("letter", row_0[1]);
 
     const row_1 = try table.getRowByIndex(1);
     try expect(row_1.len == 2);
-    try expect(std.mem.eql(u8, row_1[0], "0"));
-    try expect(std.mem.eql(u8, row_1[1], "a"));
+    try expectEqualString("0", row_1[0]);
+    try expectEqualString("a", row_1[1]);
 }
 
 test "Replace values using Table.replaceValue" {
@@ -205,7 +205,7 @@ test "Replace values using Table.replaceValue" {
         \\2,a
         \\1,c
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
 }
 
 test "Replace values containing illegal characters using Table.replaceValues" {
@@ -241,7 +241,7 @@ test "Append row using Table.insertEmptyRow" {
         \\0,a
         \\,
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
     try expect(inserted_at == 2);
 }
 
@@ -262,7 +262,7 @@ test "Insert row using Table.insertEmptyRow" {
         \\,
         \\1,b
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
     try expect(inserted_at == 1);
 }
 
@@ -281,7 +281,7 @@ test "Append column using Table.insertEmptyColumn" {
         \\id,letter,
         \\0,a,
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
     try expect(inserted_at == 2);
 }
 
@@ -301,7 +301,7 @@ test "Insert column using Table.insertEmptyColumn" {
         \\id,,letter
         \\1,,b
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
     try expect(inserted_at == 1);
 }
 
@@ -325,7 +325,7 @@ test "Append row using Table.insertEmptyRow and Table.replaceValue" {
         \\1,b
         \\2,c
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
 }
 
 test "Append column using Table.insertEmptyColumn and Table.replaceValue" {
@@ -348,7 +348,7 @@ test "Append column using Table.insertEmptyColumn and Table.replaceValue" {
         \\0,a,anemone
         \\1,b,bee
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
 }
 
 test "Delete row using Table.deleteRowByIndex" {
@@ -367,7 +367,7 @@ test "Delete row using Table.deleteRowByIndex" {
         \\id,letter
         \\1,b
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
 }
 
 test "Delete column using Table.deleteColumnByIndex" {
@@ -387,7 +387,7 @@ test "Delete column using Table.deleteColumnByIndex" {
         \\a
         \\b
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
 }
 
 test "Parse row with trailing delimiter" {
@@ -399,9 +399,9 @@ test "Parse row with trailing delimiter" {
 
     const row = try table.getRowByIndex(0);
     try expect(row.len == 3);
-    try expect(std.mem.eql(u8, row[0], "a"));
-    try expect(std.mem.eql(u8, row[1], "b"));
-    try expect(std.mem.eql(u8, row[2], ""));
+    try expectEqualString("a", row[0]);
+    try expectEqualString("b", row[1]);
+    try expectEqualString("", row[2]);
 }
 
 test "Parse multiple consecutive delimiters" {
@@ -413,10 +413,10 @@ test "Parse multiple consecutive delimiters" {
 
     const row = try table.getRowByIndex(0);
     try expect(row.len == 4);
-    try expect(std.mem.eql(u8, row[0], "a"));
-    try expect(std.mem.eql(u8, row[1], ""));
-    try expect(std.mem.eql(u8, row[2], ""));
-    try expect(std.mem.eql(u8, row[3], "d"));
+    try expectEqualString("a", row[0]);
+    try expectEqualString("", row[1]);
+    try expectEqualString("", row[2]);
+    try expectEqualString("d", row[3]);
 }
 
 test "Parse unescaped empty field" {
@@ -428,9 +428,9 @@ test "Parse unescaped empty field" {
 
     const row = try table.getRowByIndex(0);
     try expect(row.len == 3);
-    try expect(std.mem.eql(u8, row[0], "a"));
-    try expect(std.mem.eql(u8, row[1], ""));
-    try expect(std.mem.eql(u8, row[2], "c"));
+    try expectEqualString("a", row[0]);
+    try expectEqualString("", row[1]);
+    try expectEqualString("c", row[2]);
 }
 
 test "Handle trailing empty row" {
@@ -443,7 +443,7 @@ test "Handle trailing empty row" {
 
     const exported = try table.exportCSV(allocator);
     defer allocator.free(exported);
-    try expect(std.mem.eql(u8, exported, "a,b"));
+    try expectEqualString("a,b", exported);
 }
 
 test "Fail-fast on empty row" {
@@ -478,9 +478,9 @@ test "Parse empty escaped field" {
 
     const row = try table.getRowByIndex(0);
     try expect(row.len == 3);
-    try expect(std.mem.eql(u8, row[0], "a"));
-    try expect(std.mem.eql(u8, row[1], ""));
-    try expect(std.mem.eql(u8, row[2], "c"));
+    try expectEqualString("a", row[0]);
+    try expectEqualString("", row[1]);
+    try expectEqualString("c", row[2]);
 }
 
 test "Parse with custom escape character" {
@@ -501,7 +501,7 @@ test "Parse with custom escape character" {
     const expected_csv =
         \\a,b
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
 }
 
 test "Parse escaped field with delimiter" {
@@ -514,7 +514,7 @@ test "Parse escaped field with delimiter" {
 
     const exported = try table.exportCSV(allocator);
     defer allocator.free(exported);
-    try expect(std.mem.eql(u8, exported, data));
+    try expectEqualString(data, exported);
 }
 
 test "Parse escaped field with escaped quote characters" {
@@ -527,7 +527,7 @@ test "Parse escaped field with escaped quote characters" {
 
     const exported = try table.exportCSV(allocator);
     defer allocator.free(exported);
-    try expect(std.mem.eql(u8, exported, data));
+    try expectEqualString(data, exported);
 }
 
 test "Parse escaped field with newline" {
@@ -541,7 +541,7 @@ test "Parse escaped field with newline" {
 
     const exported = try table.exportCSV(allocator);
     defer allocator.free(exported);
-    try expect(std.mem.eql(u8, exported, data));
+    try expectEqualString(data, exported);
 }
 
 test "Fail-fast on unopened escaped field" {
@@ -605,7 +605,7 @@ test "Handle custom escape character in exported CSV" {
         \\id,letter
         \\0,"example ""word"""
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
 }
 
 test "Iterate all valid fixtures" {

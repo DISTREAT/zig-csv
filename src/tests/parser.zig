@@ -2,6 +2,7 @@ const std = @import("std");
 const csv = @import("zig_csv");
 const allocator = std.testing.allocator;
 const expect = std.testing.expect;
+const expectEqualString = std.testing.expectEqualStrings;
 const Lexer = csv.parser.Lexer;
 const LexerSettings = csv.parser.LexerSettings;
 const Parser = csv.parser.Parser;
@@ -15,7 +16,7 @@ fn expect_token_value_pair(token_value_pair: TokenValuePair, expected_token_valu
         try expect(token_value_pair.value == null);
         try expect(expected_token_value_pair.value == null);
     } else {
-        try expect(std.mem.eql(u8, token_value_pair.value.?, expected_token_value_pair.value.?));
+        try expectEqualString(expected_token_value_pair.value.?, token_value_pair.value.?);
     }
 }
 
@@ -24,7 +25,7 @@ fn expect_parser_field_next(parser: *Parser, expected: []const u8) anyerror!void
     try expect(result != null);
     try expect(result.? == .field);
     defer allocator.free(result.?.field);
-    try expect(std.mem.eql(u8, result.?.field, expected));
+    try expectEqualString(expected, result.?.field);
 }
 
 test "Lexer(Token.DELIMITER): basic test" {
