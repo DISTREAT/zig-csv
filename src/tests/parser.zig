@@ -121,6 +121,15 @@ test "Parser(QUOTE): legal quotation cases" {
     try expect(try parser.next(allocator) == null);
 }
 
+test "Parser(QUOTE): empty value" {
+    const data =
+        \\""
+    ;
+    var parser = Parser.init(LexerSettings.default(), data);
+    try expect_parser_field_next(&parser, "");
+    try expect(try parser.next(allocator) == null);
+}
+
 test "Parser(QUOTE): ignores delimiters" {
     const data =
         \\";"

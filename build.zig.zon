@@ -10,6 +10,9 @@
         "README.md",
         "build.zig",
         "build.zig.zon",
-        "src",
+        "src/parser.zig",
+        "src/root.zig",
+        "src/schema.zig",
+        "src/table.zig",
     },
 }

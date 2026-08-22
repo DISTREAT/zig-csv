@@ -1,6 +1,8 @@
 const std = @import("std");
 const csv = @import("zig_csv");
+const fixtures = @import("fixtures").fixtures;
 const expect = std.testing.expect;
+const expectEqualString = std.testing.expectEqualStrings;
 const allocator = std.testing.allocator;
 const StructuredTable = csv.StructuredTable;
 
@@ -604,4 +606,21 @@ test "Handle custom escape character in exported CSV" {
         \\0,"example ""word"""
     ;
     try expect(std.mem.eql(u8, exported, expected_csv));
+}
+
+test "Iterate all valid fixtures" {
+    inline for (fixtures) |fixture| {
+        var table = csv.Table.init(allocator, csv.LexerSettings.default());
+        defer table.deinit();
+        table.parse(fixture.data) catch |err| {
+            std.debug.print("Fixture: {s}\n", .{fixture.name});
+            return err;
+        };
+        const exported: []const u8 = try table.exportCSV(allocator);
+        defer allocator.free(exported);
+        expectEqualString(fixture.data[0 .. fixture.data.len - 1], exported) catch |err| {
+            std.debug.print("Fixture: {s}\n", .{fixture.name});
+            return err;
+        };
+    }
 }
