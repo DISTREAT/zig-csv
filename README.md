@@ -61,7 +61,7 @@ const Animal = struct {
 // Parse CSV data into a StructuredTable
 var table = csv.StructuredTable(Animal).init(
     allocator,
-    csv.Settings.default()
+    csv.LexerSettings.default()
 );
 defer table.deinit();
 try table.parse(
@@ -116,7 +116,7 @@ const csv = @import("zig_csv");
 const allocator = std.heap.page_allocator;
 
 // Parse CSV data
-var table = csv.Table.init(allocator, csv.Settings.default());
+var table = csv.Table.init(allocator, csv.LexerSettings.default());
 defer table.deinit();
 try table.parse(
     \\id,animal,color

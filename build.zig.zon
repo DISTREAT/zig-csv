@@ -1,14 +1,18 @@
 .{
     .name = .zig_csv,
-    .version = "1.2.0",
+    .version = "2.0.0",
     .fingerprint = 0xb5163165a35b825b,
     .minimum_zig_version = "0.16.0",
     .dependencies = .{},
     .paths = .{
+        "LICENSE.txt",
+        "PHILOSOPHY.md",
+        "README.md",
         "build.zig",
         "build.zig.zon",
-        "src",
-        "LICENSE.txt",
-        "README.md",
+        "src/parser.zig",
+        "src/root.zig",
+        "src/schema.zig",
+        "src/table.zig",
     },
 }

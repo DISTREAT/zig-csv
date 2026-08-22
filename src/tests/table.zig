@@ -1,11 +1,13 @@
 const std = @import("std");
 const csv = @import("zig_csv");
+const fixtures = @import("fixtures").fixtures;
 const expect = std.testing.expect;
+const expectEqualString = std.testing.expectEqualStrings;
 const allocator = std.testing.allocator;
 const StructuredTable = csv.StructuredTable;
 
 test "Initialize Table using Table.parse and export to CSV via Table.exportCSV" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     const csv_data =
         \\id,shorthand,animal name,scientific name
@@ -13,75 +15,82 @@ test "Initialize Table using Table.parse and export to CSV via Table.exportCSV" 
         \\1,c,cat,felis catus
         \\2,p,pig,sus domesticus
         \\3,d,dog,canis familiaris
+        \\
     ;
     try table.parse(csv_data);
 
     const exported: []const u8 = try table.exportCSV(allocator);
     defer allocator.free(exported);
-    try expect(std.mem.eql(u8, exported, csv_data));
+    try expectEqualString(csv_data, exported);
 }
 
 test "Initialize Table using Table.parseRow and export to CSV via Table.exportCSV" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     const csv_data =
         \\id,letter
         \\0,a
         \\1,b
+        \\
     ;
     var csv_data_1_iterator = std.mem.splitSequence(u8, csv_data, "\n");
     while (csv_data_1_iterator.next()) |row| try table.parse(row);
 
     const exported: []const u8 = try table.exportCSV(allocator);
     defer allocator.free(exported);
-    try expect(std.mem.eql(u8, exported, csv_data));
+    try expectEqualString(csv_data, exported);
 }
 
 test "Initialize Table using custom delimiter and terminator and export to CSV via Table.exportCSV" {
-    var table = csv.Table.init(allocator, csv.Settings{
+    var table = csv.Table.init(allocator, csv.LexerSettings{
         .delimiter = "-",
+        .escape = "\\",
+        .quote = "\"",
         .terminator = "|",
     });
     defer table.deinit();
     const csv_data =
-        \\1-2-3|a-b-c
+        \\1-2-3|a-b-c|
     ;
     try table.parse(csv_data);
 
     const exported: []const u8 = try table.exportCSV(allocator);
     defer allocator.free(exported);
-    try expect(std.mem.eql(u8, exported, csv_data));
+    try expectEqualString(csv_data, exported);
 }
 
 test "Get number of rows using Table.getRowCount" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,animal name,scientific name
         \\0,rat,rattus rattus
+        \\
     );
     const row_count = table.getRowCount();
     try expect(row_count == 2);
 }
 
 test "Get number of columns using Table.getColumnCount" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,animal name,scientific name
         \\0,rat,rattus rattus
+        \\
     );
     const column_count = table.getColumnCount();
     try expect(column_count == 3);
 }
 
 test "Find indexes of columns using Table.findColumnIndexesByValue" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,animal name,scientific name
         \\0,rat,rattus rattus
         \\1,pig,sus domesticus
+        \\
     );
 
     var arena = std.heap.ArenaAllocator.init(allocator);
@@ -109,12 +118,13 @@ test "Find indexes of columns using Table.findColumnIndexesByValue" {
 }
 
 test "Find indexes of columns using Table.findRowIndexesByValue" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,animal name,scientific name
         \\0,rat,rattus rattus
         \\1,pig,sus domesticus
+        \\
     );
 
     var arena = std.heap.ArenaAllocator.init(allocator);
@@ -142,11 +152,12 @@ test "Find indexes of columns using Table.findRowIndexesByValue" {
 }
 
 test "Get column by index using Table.getColumnByIndex" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,letter
         \\0,a
+        \\
     );
 
     var arena = std.heap.ArenaAllocator.init(allocator);
@@ -155,36 +166,37 @@ test "Get column by index using Table.getColumnByIndex" {
 
     const column_0 = try table.getColumnByIndex(arena_allocator, 0);
     try expect(column_0.len == 2);
-    try expect(std.mem.eql(u8, column_0[0], "id"));
-    try expect(std.mem.eql(u8, column_0[1], "0"));
+    try expectEqualString("id", column_0[0]);
+    try expectEqualString("0", column_0[1]);
 
     const column_1 = try table.getColumnByIndex(arena_allocator, 1);
     try expect(column_1.len == 2);
-    try expect(std.mem.eql(u8, column_1[0], "letter"));
-    try expect(std.mem.eql(u8, column_1[1], "a"));
+    try expectEqualString("letter", column_1[0]);
+    try expectEqualString("a", column_1[1]);
 }
 
 test "Get row by index using Table.getRowByIndex" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,letter
         \\0,a
+        \\
     );
 
     const row_0 = try table.getRowByIndex(0);
     try expect(row_0.len == 2);
-    try expect(std.mem.eql(u8, row_0[0], "id"));
-    try expect(std.mem.eql(u8, row_0[1], "letter"));
+    try expectEqualString("id", row_0[0]);
+    try expectEqualString("letter", row_0[1]);
 
     const row_1 = try table.getRowByIndex(1);
     try expect(row_1.len == 2);
-    try expect(std.mem.eql(u8, row_1[0], "0"));
-    try expect(std.mem.eql(u8, row_1[1], "a"));
+    try expectEqualString("0", row_1[0]);
+    try expectEqualString("a", row_1[1]);
 }
 
 test "Replace values using Table.replaceValue" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,letter
@@ -200,19 +212,23 @@ test "Replace values using Table.replaceValue" {
         \\id,letter
         \\2,a
         \\1,c
+        \\
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
 }
 
 test "Replace values containing illegal characters using Table.replaceValues" {
-    var table = csv.Table.init(allocator, csv.Settings{
+    var table = csv.Table.init(allocator, csv.LexerSettings{
         .delimiter = ",",
+        .escape = "\\",
+        .quote = "\"",
         .terminator = "\n",
     });
     defer table.deinit();
     try table.parse(
         \\a,b
         \\c,d
+        \\
     );
 
     try expect(table.replaceValue(0, 0, ",2") == csv.TableError.IllegalCharacter);
@@ -220,7 +236,7 @@ test "Replace values containing illegal characters using Table.replaceValues" {
 }
 
 test "Append row using Table.insertEmptyRow" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,letter
@@ -234,13 +250,14 @@ test "Append row using Table.insertEmptyRow" {
         \\id,letter
         \\0,a
         \\,
+        \\
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
     try expect(inserted_at == 2);
 }
 
 test "Insert row using Table.insertEmptyRow" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     const csv_data =
         \\id,letter
@@ -255,13 +272,14 @@ test "Insert row using Table.insertEmptyRow" {
         \\id,letter
         \\,
         \\1,b
+        \\
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
     try expect(inserted_at == 1);
 }
 
 test "Append column using Table.insertEmptyColumn" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,letter
@@ -274,13 +292,14 @@ test "Append column using Table.insertEmptyColumn" {
     const expected_csv =
         \\id,letter,
         \\0,a,
+        \\
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
     try expect(inserted_at == 2);
 }
 
 test "Insert column using Table.insertEmptyColumn" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     const csv_data =
         \\id,letter
@@ -294,13 +313,14 @@ test "Insert column using Table.insertEmptyColumn" {
     const expected_csv =
         \\id,,letter
         \\1,,b
+        \\
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
     try expect(inserted_at == 1);
 }
 
 test "Append row using Table.insertEmptyRow and Table.replaceValue" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,letter
@@ -318,12 +338,13 @@ test "Append row using Table.insertEmptyRow and Table.replaceValue" {
         \\0,a
         \\1,b
         \\2,c
+        \\
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
 }
 
 test "Append column using Table.insertEmptyColumn and Table.replaceValue" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,letter
@@ -341,12 +362,13 @@ test "Append column using Table.insertEmptyColumn and Table.replaceValue" {
         \\id,letter,example word
         \\0,a,anemone
         \\1,b,bee
+        \\
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
 }
 
 test "Delete row using Table.deleteRowByIndex" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,letter
@@ -360,12 +382,13 @@ test "Delete row using Table.deleteRowByIndex" {
     const expected_csv =
         \\id,letter
         \\1,b
+        \\
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
 }
 
 test "Delete column using Table.deleteColumnByIndex" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\id,letter
@@ -380,12 +403,13 @@ test "Delete column using Table.deleteColumnByIndex" {
         \\letter
         \\a
         \\b
+        \\
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
 }
 
 test "Parse row with trailing delimiter" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\a,b,
@@ -393,13 +417,13 @@ test "Parse row with trailing delimiter" {
 
     const row = try table.getRowByIndex(0);
     try expect(row.len == 3);
-    try expect(std.mem.eql(u8, row[0], "a"));
-    try expect(std.mem.eql(u8, row[1], "b"));
-    try expect(std.mem.eql(u8, row[2], ""));
+    try expectEqualString("a", row[0]);
+    try expectEqualString("b", row[1]);
+    try expectEqualString("", row[2]);
 }
 
 test "Parse multiple consecutive delimiters" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\a,,,d
@@ -407,14 +431,14 @@ test "Parse multiple consecutive delimiters" {
 
     const row = try table.getRowByIndex(0);
     try expect(row.len == 4);
-    try expect(std.mem.eql(u8, row[0], "a"));
-    try expect(std.mem.eql(u8, row[1], ""));
-    try expect(std.mem.eql(u8, row[2], ""));
-    try expect(std.mem.eql(u8, row[3], "d"));
+    try expectEqualString("a", row[0]);
+    try expectEqualString("", row[1]);
+    try expectEqualString("", row[2]);
+    try expectEqualString("d", row[3]);
 }
 
 test "Parse unescaped empty field" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\a,,c
@@ -422,22 +446,21 @@ test "Parse unescaped empty field" {
 
     const row = try table.getRowByIndex(0);
     try expect(row.len == 3);
-    try expect(std.mem.eql(u8, row[0], "a"));
-    try expect(std.mem.eql(u8, row[1], ""));
-    try expect(std.mem.eql(u8, row[2], "c"));
+    try expectEqualString("a", row[0]);
+    try expectEqualString("", row[1]);
+    try expectEqualString("c", row[2]);
 }
 
 test "Handle trailing empty row" {
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\a,b
-        \\
     );
 
     const exported = try table.exportCSV(allocator);
     defer allocator.free(exported);
-    try expect(std.mem.eql(u8, exported, "a,b"));
+    try expectEqualString("a,b\n", exported);
 }
 
 test "Fail-fast on empty row" {
@@ -446,7 +469,7 @@ test "Fail-fast on empty row" {
         \\
         \\c,d
     ;
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     const result = table.parse(data);
     try expect(result == csv.TableError.InconsistentRowLength);
@@ -455,10 +478,171 @@ test "Fail-fast on empty row" {
 test "Fail-fast on inconsistent row lengths" {
     const data =
         \\a,b
-        \\c,d,e"
+        \\c,d,e
     ;
-    var table = csv.Table.init(allocator, csv.Settings.default());
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     const result = table.parse(data);
     try expect(result == csv.TableError.InconsistentRowLength);
+}
+
+test "Parse empty escaped field" {
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
+    defer table.deinit();
+    try table.parse(
+        \\a,"",c
+    );
+
+    const row = try table.getRowByIndex(0);
+    try expect(row.len == 3);
+    try expectEqualString("a", row[0]);
+    try expectEqualString("", row[1]);
+    try expectEqualString("c", row[2]);
+}
+
+test "Parse with custom escape character" {
+    const data =
+        \\|a|,|b|
+    ;
+    var table = csv.Table.init(allocator, csv.LexerSettings{
+        .delimiter = ",",
+        .escape = "\\",
+        .quote = "|",
+        .terminator = "\n",
+    });
+    defer table.deinit();
+    try table.parse(data);
+
+    const exported = try table.exportCSV(allocator);
+    defer allocator.free(exported);
+    const expected_csv =
+        \\a,b
+        \\
+    ;
+    try expectEqualString(expected_csv, exported);
+}
+
+test "Parse escaped field with delimiter" {
+    const data =
+        \\a,"example string, with delimiter",c
+        \\
+    ;
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
+    defer table.deinit();
+    try table.parse(data);
+
+    const exported = try table.exportCSV(allocator);
+    defer allocator.free(exported);
+    try expectEqualString(data, exported);
+}
+
+test "Parse escaped field with escaped quote characters" {
+    const data =
+        \\a,"example string, with ""escape character""",c
+        \\
+    ;
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
+    defer table.deinit();
+    try table.parse(data);
+
+    const exported = try table.exportCSV(allocator);
+    defer allocator.free(exported);
+    try expectEqualString(data, exported);
+}
+
+test "Parse escaped field with newline" {
+    const data =
+        \\a,"example string,
+        \\with newline",c
+        \\
+    ;
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
+    defer table.deinit();
+    try table.parse(data);
+
+    const exported = try table.exportCSV(allocator);
+    defer allocator.free(exported);
+    try expectEqualString(data, exported);
+}
+
+test "Fail-fast on unopened escaped field" {
+    const data =
+        \\a,example string",c
+    ;
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
+    defer table.deinit();
+    const result = table.parse(data);
+    try expect(result == csv.ParserError.IllegalQuotation);
+}
+
+test "Fail-fast on unclosed escaped field" {
+    const data =
+        \\a,"example string,c
+    ;
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
+    defer table.deinit();
+    const result = table.parse(data);
+    try expect(result == csv.ParserError.UnfinishedQuotation);
+}
+
+test "Fail-fast on whitespace between escape character and delimiter" {
+    const data =
+        \\"a, "example string",c
+    ;
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
+    defer table.deinit();
+    const result = table.parse(data);
+    try expect(result == csv.ParserError.IllegalQuotation);
+}
+
+test "Fail-fast on unescaped escape character" {
+    const data =
+        \\a,example "str"ing,c
+    ;
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
+    defer table.deinit();
+    const result = table.parse(data);
+    try expect(result == csv.ParserError.IllegalQuotation);
+}
+
+test "Handle custom escape character in exported CSV" {
+    var table = csv.Table.init(allocator, csv.LexerSettings{
+        .delimiter = ",",
+        .escape = "|",
+        .quote = "\"",
+        .terminator = "\n",
+    });
+    defer table.deinit();
+    try table.parse(
+        \\id,letter
+        \\0,a
+    );
+
+    try table.replaceValue(1, 1, "example \"word\"");
+
+    const exported: []const u8 = try table.exportCSV(allocator);
+    defer allocator.free(exported);
+    const expected_csv =
+        \\id,letter
+        \\0,"example ""word"""
+        \\
+    ;
+    try expectEqualString(expected_csv, exported);
+}
+
+test "Iterate all valid fixtures" {
+    inline for (fixtures) |fixture| {
+        var table = csv.Table.init(allocator, csv.LexerSettings.default());
+        defer table.deinit();
+        table.parse(fixture.data) catch |err| {
+            std.debug.print("Fixture: {s}\n", .{fixture.name});
+            return err;
+        };
+        const exported: []const u8 = try table.exportCSV(allocator);
+        defer allocator.free(exported);
+        expectEqualString(fixture.data, exported) catch |err| {
+            std.debug.print("Fixture: {s}\n", .{fixture.name});
+            return err;
+        };
+    }
 }

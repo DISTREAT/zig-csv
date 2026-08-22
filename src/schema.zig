@@ -1,10 +1,12 @@
 const std = @import("std");
 const table = @import("table.zig");
+const parser = @import("parser.zig");
 const Allocator = std.mem.Allocator;
 const ArrayList = std.ArrayList;
 const Table = table.Table;
 const TableError = table.TableError;
-const Settings = table.Settings;
+const LexerSettings = parser.LexerSettings;
+const ParserError = parser.ParserError;
 
 /// Errors that can occur when mapping CSV data to a structured type
 pub const StructureError = error{
@@ -51,7 +53,7 @@ pub fn StructuredTable(table_schema: type) type {
         /// The underlying CSV table
         table: Table,
         /// The settings that should be used when parsing the CSV data
-        settings: Settings,
+        settings: LexerSettings,
         /// The allocator used for memory management
         allocator: Allocator,
         /// An arena allocator for dangling allocations
@@ -60,7 +62,7 @@ pub fn StructuredTable(table_schema: type) type {
         const Self = @This();
 
         /// Initialize a new StructuredTable
-        pub fn init(allocator: Allocator, settings: Settings) Self {
+        pub fn init(allocator: Allocator, settings: LexerSettings) Self {
             return Self{
                 .table = Table.init(allocator, settings),
                 .settings = settings,
@@ -76,7 +78,7 @@ pub fn StructuredTable(table_schema: type) type {
         }
 
         /// Parse CSV data into the StructuredTable
-        pub fn parse(self: *Self, csv_data: []const u8) (TableError || StructureError)!void {
+        pub fn parse(self: *Self, csv_data: []const u8) (TableError || StructureError || ParserError)!void {
             try self.table.parse(csv_data);
             if (self.table.getColumnCount() != schema_info.@"struct".fields.len) return StructureError.InvalidColumnCount;
         }

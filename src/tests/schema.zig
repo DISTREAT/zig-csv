@@ -1,6 +1,7 @@
 const std = @import("std");
 const csv = @import("zig_csv");
 const expect = std.testing.expect;
+const expectEqualString = std.testing.expectEqualStrings;
 const allocator = std.testing.allocator;
 const StructuredTable = csv.StructuredTable;
 
@@ -12,7 +13,7 @@ test "StructuredTable: Parse CSV into struct and access rows" {
         foo: f32,
     };
 
-    var table = StructuredTable(DogTable).init(allocator, csv.Settings.default());
+    var table = StructuredTable(DogTable).init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\name,age,alive,foo
@@ -28,8 +29,8 @@ test "StructuredTable: Parse CSV into struct and access rows" {
     const row_2_value = row_2.ok.value;
     try expect(table.getRow(2) == csv.TableError.RowNotFound);
 
-    try expect(std.mem.eql(u8, row_1_value.name, "Fido"));
-    try expect(std.mem.eql(u8, row_2_value.name, "Rex"));
+    try expectEqualString("Fido", row_1_value.name);
+    try expectEqualString("Rex", row_2_value.name);
     try expect(row_1_value.age == 4);
     try expect(row_2_value.age == 7);
     try expect(row_1_value.alive);
@@ -46,7 +47,7 @@ test "StructuredTable: Edit struct row and export to CSV" {
         foo: f32,
     };
 
-    var table = StructuredTable(DogTable).init(allocator, csv.Settings.default());
+    var table = StructuredTable(DogTable).init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\name,age,alive,foo
@@ -58,7 +59,7 @@ test "StructuredTable: Edit struct row and export to CSV" {
 
     const row = try table.getRow(0);
     var value = row.ok.value;
-    try expect(std.mem.eql(u8, value.name, "Fido"));
+    try expectEqualString("Fido", value.name);
 
     value.name = "Berta";
     _ = try table.editRow(0, value);
@@ -69,8 +70,9 @@ test "StructuredTable: Edit struct row and export to CSV" {
         \\name,age,alive,foo
         \\Berta,4,true,0.3
         \\Rex,7,false,0.11
+        \\
     ;
-    try expect(std.mem.eql(u8, exported_csv, expected_csv));
+    try expectEqualString(expected_csv, exported_csv);
 }
 
 test "StructuredTable: Delete struct row" {
@@ -81,7 +83,7 @@ test "StructuredTable: Delete struct row" {
         foo: f32,
     };
 
-    var table = StructuredTable(DogTable).init(allocator, csv.Settings.default());
+    var table = StructuredTable(DogTable).init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\name,age,alive,foo
@@ -99,8 +101,9 @@ test "StructuredTable: Delete struct row" {
     const expected_csv =
         \\name,age,alive,foo
         \\Rex,7,false,0.11
+        \\
     ;
-    try expect(std.mem.eql(u8, exported_csv, expected_csv));
+    try expectEqualString(expected_csv, exported_csv);
 }
 
 test "StructuredTable: Create empty struct table and insert rows" {
@@ -111,7 +114,7 @@ test "StructuredTable: Create empty struct table and insert rows" {
         foo: f32,
     };
 
-    var table = StructuredTable(DogTable).init(allocator, csv.Settings.default());
+    var table = StructuredTable(DogTable).init(allocator, csv.LexerSettings.default());
     defer table.deinit();
 
     const new_row_1 = DogTable{
@@ -138,8 +141,9 @@ test "StructuredTable: Create empty struct table and insert rows" {
         \\name,age,alive,foo
         \\Buddy,3,true,0.5
         \\Max,5,false,0.2
+        \\
     ;
-    try expect(std.mem.eql(u8, exported_csv, expected_csv));
+    try expectEqualString(expected_csv, exported_csv);
 }
 
 test "StructuredTable: Insert row at specific index" {
@@ -150,7 +154,7 @@ test "StructuredTable: Insert row at specific index" {
         foo: f32,
     };
 
-    var table = StructuredTable(DogTable).init(allocator, csv.Settings.default());
+    var table = StructuredTable(DogTable).init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\name,age,alive,foo
@@ -175,8 +179,9 @@ test "StructuredTable: Insert row at specific index" {
         \\Fido,4,true,0.3
         \\Buddy,3,true,0.5
         \\Rex,7,false,0.11
+        \\
     ;
-    try expect(std.mem.eql(u8, exported_csv, expected_csv));
+    try expectEqualString(expected_csv, exported_csv);
 }
 
 test "StructuredTable: Handle parsing error due to invalid csv type" {
@@ -187,7 +192,7 @@ test "StructuredTable: Handle parsing error due to invalid csv type" {
         foo: f32,
     };
 
-    var table = StructuredTable(DogTable).init(allocator, csv.Settings.default());
+    var table = StructuredTable(DogTable).init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\name,age,alive,foo
@@ -196,9 +201,9 @@ test "StructuredTable: Handle parsing error due to invalid csv type" {
     const result = try table.getRow(0);
     const err = result.@"error";
     try expect(err.kind == csv.StructureError.UnexpectedType);
-    try expect(std.mem.eql(u8, err.csv_value.?, "invalid_age"));
-    try expect(std.mem.eql(u8, err.field_name.?, "age"));
-    try expect(std.mem.eql(u8, err.field_type.?, "u8"));
+    try expectEqualString("invalid_age", err.csv_value.?);
+    try expectEqualString("age", err.field_name.?);
+    try expectEqualString("u8", err.field_type.?);
 }
 
 test "StructuredTable: Optional fields parse and null behavior" {
@@ -209,7 +214,7 @@ test "StructuredTable: Optional fields parse and null behavior" {
         foo: ?f32,
     };
 
-    var table = StructuredTable(DogTableOpt).init(allocator, csv.Settings.default());
+    var table = StructuredTable(DogTableOpt).init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\name,age,alive,foo
@@ -221,7 +226,7 @@ test "StructuredTable: Optional fields parse and null behavior" {
 
     const row_0 = try table.getRow(0);
     const value_0 = row_0.ok.value;
-    try expect(std.mem.eql(u8, value_0.name.?, "Fido"));
+    try expectEqualString("Fido", value_0.name.?);
     try expect(value_0.age.? == 4);
     try expect(value_0.alive.?);
     try expect(value_0.foo.? == 0.3);
@@ -242,7 +247,7 @@ test "StructuredTable: Optional fields edit writes empty when null" {
         foo: ?f32,
     };
 
-    var table = StructuredTable(DogTableOpt).init(allocator, csv.Settings.default());
+    var table = StructuredTable(DogTableOpt).init(allocator, csv.LexerSettings.default());
     defer table.deinit();
     try table.parse(
         \\name,age,alive,foo
@@ -263,6 +268,7 @@ test "StructuredTable: Optional fields edit writes empty when null" {
     const expected_csv =
         \\name,age,alive,foo
         \\,,,
+        \\
     ;
-    try expect(std.mem.eql(u8, exported, expected_csv));
+    try expectEqualString(expected_csv, exported);
 }
