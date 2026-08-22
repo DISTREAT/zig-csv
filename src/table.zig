@@ -210,6 +210,7 @@ pub const Table = struct {
                 if (requires_quotation) try csv.appendSlice(allocator, self.settings.quote);
             }
         }
+        try csv.appendSlice(allocator, self.settings.terminator);
         return csv.toOwnedSlice(allocator);
     }
 };

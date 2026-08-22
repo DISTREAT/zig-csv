@@ -70,6 +70,7 @@ test "StructuredTable: Edit struct row and export to CSV" {
         \\name,age,alive,foo
         \\Berta,4,true,0.3
         \\Rex,7,false,0.11
+        \\
     ;
     try expectEqualString(expected_csv, exported_csv);
 }
@@ -100,6 +101,7 @@ test "StructuredTable: Delete struct row" {
     const expected_csv =
         \\name,age,alive,foo
         \\Rex,7,false,0.11
+        \\
     ;
     try expectEqualString(expected_csv, exported_csv);
 }
@@ -139,6 +141,7 @@ test "StructuredTable: Create empty struct table and insert rows" {
         \\name,age,alive,foo
         \\Buddy,3,true,0.5
         \\Max,5,false,0.2
+        \\
     ;
     try expectEqualString(expected_csv, exported_csv);
 }
@@ -176,6 +179,7 @@ test "StructuredTable: Insert row at specific index" {
         \\Fido,4,true,0.3
         \\Buddy,3,true,0.5
         \\Rex,7,false,0.11
+        \\
     ;
     try expectEqualString(expected_csv, exported_csv);
 }
@@ -264,6 +268,7 @@ test "StructuredTable: Optional fields edit writes empty when null" {
     const expected_csv =
         \\name,age,alive,foo
         \\,,,
+        \\
     ;
     try expectEqualString(expected_csv, exported);
 }

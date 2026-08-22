@@ -15,6 +15,7 @@ test "Initialize Table using Table.parse and export to CSV via Table.exportCSV" 
         \\1,c,cat,felis catus
         \\2,p,pig,sus domesticus
         \\3,d,dog,canis familiaris
+        \\
     ;
     try table.parse(csv_data);
 
@@ -30,6 +31,7 @@ test "Initialize Table using Table.parseRow and export to CSV via Table.exportCS
         \\id,letter
         \\0,a
         \\1,b
+        \\
     ;
     var csv_data_1_iterator = std.mem.splitSequence(u8, csv_data, "\n");
     while (csv_data_1_iterator.next()) |row| try table.parse(row);
@@ -48,7 +50,7 @@ test "Initialize Table using custom delimiter and terminator and export to CSV v
     });
     defer table.deinit();
     const csv_data =
-        \\1-2-3|a-b-c
+        \\1-2-3|a-b-c|
     ;
     try table.parse(csv_data);
 
@@ -63,6 +65,7 @@ test "Get number of rows using Table.getRowCount" {
     try table.parse(
         \\id,animal name,scientific name
         \\0,rat,rattus rattus
+        \\
     );
     const row_count = table.getRowCount();
     try expect(row_count == 2);
@@ -74,6 +77,7 @@ test "Get number of columns using Table.getColumnCount" {
     try table.parse(
         \\id,animal name,scientific name
         \\0,rat,rattus rattus
+        \\
     );
     const column_count = table.getColumnCount();
     try expect(column_count == 3);
@@ -86,6 +90,7 @@ test "Find indexes of columns using Table.findColumnIndexesByValue" {
         \\id,animal name,scientific name
         \\0,rat,rattus rattus
         \\1,pig,sus domesticus
+        \\
     );
 
     var arena = std.heap.ArenaAllocator.init(allocator);
@@ -119,6 +124,7 @@ test "Find indexes of columns using Table.findRowIndexesByValue" {
         \\id,animal name,scientific name
         \\0,rat,rattus rattus
         \\1,pig,sus domesticus
+        \\
     );
 
     var arena = std.heap.ArenaAllocator.init(allocator);
@@ -151,6 +157,7 @@ test "Get column by index using Table.getColumnByIndex" {
     try table.parse(
         \\id,letter
         \\0,a
+        \\
     );
 
     var arena = std.heap.ArenaAllocator.init(allocator);
@@ -174,6 +181,7 @@ test "Get row by index using Table.getRowByIndex" {
     try table.parse(
         \\id,letter
         \\0,a
+        \\
     );
 
     const row_0 = try table.getRowByIndex(0);
@@ -204,6 +212,7 @@ test "Replace values using Table.replaceValue" {
         \\id,letter
         \\2,a
         \\1,c
+        \\
     ;
     try expectEqualString(expected_csv, exported);
 }
@@ -219,6 +228,7 @@ test "Replace values containing illegal characters using Table.replaceValues" {
     try table.parse(
         \\a,b
         \\c,d
+        \\
     );
 
     try expect(table.replaceValue(0, 0, ",2") == csv.TableError.IllegalCharacter);
@@ -240,6 +250,7 @@ test "Append row using Table.insertEmptyRow" {
         \\id,letter
         \\0,a
         \\,
+        \\
     ;
     try expectEqualString(expected_csv, exported);
     try expect(inserted_at == 2);
@@ -261,6 +272,7 @@ test "Insert row using Table.insertEmptyRow" {
         \\id,letter
         \\,
         \\1,b
+        \\
     ;
     try expectEqualString(expected_csv, exported);
     try expect(inserted_at == 1);
@@ -280,6 +292,7 @@ test "Append column using Table.insertEmptyColumn" {
     const expected_csv =
         \\id,letter,
         \\0,a,
+        \\
     ;
     try expectEqualString(expected_csv, exported);
     try expect(inserted_at == 2);
@@ -300,6 +313,7 @@ test "Insert column using Table.insertEmptyColumn" {
     const expected_csv =
         \\id,,letter
         \\1,,b
+        \\
     ;
     try expectEqualString(expected_csv, exported);
     try expect(inserted_at == 1);
@@ -324,6 +338,7 @@ test "Append row using Table.insertEmptyRow and Table.replaceValue" {
         \\0,a
         \\1,b
         \\2,c
+        \\
     ;
     try expectEqualString(expected_csv, exported);
 }
@@ -347,6 +362,7 @@ test "Append column using Table.insertEmptyColumn and Table.replaceValue" {
         \\id,letter,example word
         \\0,a,anemone
         \\1,b,bee
+        \\
     ;
     try expectEqualString(expected_csv, exported);
 }
@@ -366,6 +382,7 @@ test "Delete row using Table.deleteRowByIndex" {
     const expected_csv =
         \\id,letter
         \\1,b
+        \\
     ;
     try expectEqualString(expected_csv, exported);
 }
@@ -386,6 +403,7 @@ test "Delete column using Table.deleteColumnByIndex" {
         \\letter
         \\a
         \\b
+        \\
     ;
     try expectEqualString(expected_csv, exported);
 }
@@ -438,12 +456,11 @@ test "Handle trailing empty row" {
     defer table.deinit();
     try table.parse(
         \\a,b
-        \\
     );
 
     const exported = try table.exportCSV(allocator);
     defer allocator.free(exported);
-    try expectEqualString("a,b", exported);
+    try expectEqualString("a,b\n", exported);
 }
 
 test "Fail-fast on empty row" {
@@ -500,6 +517,7 @@ test "Parse with custom escape character" {
     defer allocator.free(exported);
     const expected_csv =
         \\a,b
+        \\
     ;
     try expectEqualString(expected_csv, exported);
 }
@@ -507,6 +525,7 @@ test "Parse with custom escape character" {
 test "Parse escaped field with delimiter" {
     const data =
         \\a,"example string, with delimiter",c
+        \\
     ;
     var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
@@ -520,6 +539,7 @@ test "Parse escaped field with delimiter" {
 test "Parse escaped field with escaped quote characters" {
     const data =
         \\a,"example string, with ""escape character""",c
+        \\
     ;
     var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
@@ -534,6 +554,7 @@ test "Parse escaped field with newline" {
     const data =
         \\a,"example string,
         \\with newline",c
+        \\
     ;
     var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
@@ -604,6 +625,7 @@ test "Handle custom escape character in exported CSV" {
     const expected_csv =
         \\id,letter
         \\0,"example ""word"""
+        \\
     ;
     try expectEqualString(expected_csv, exported);
 }
@@ -618,7 +640,7 @@ test "Iterate all valid fixtures" {
         };
         const exported: []const u8 = try table.exportCSV(allocator);
         defer allocator.free(exported);
-        expectEqualString(fixture.data[0 .. fixture.data.len - 1], exported) catch |err| {
+        expectEqualString(fixture.data, exported) catch |err| {
             std.debug.print("Fixture: {s}\n", .{fixture.name});
             return err;
         };
