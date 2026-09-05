@@ -217,24 +217,6 @@ test "Replace values using Table.replaceValue" {
     try expectEqualString(expected_csv, exported);
 }
 
-test "Replace values containing illegal characters using Table.replaceValues" {
-    var table = csv.Table.init(allocator, csv.LexerSettings{
-        .delimiter = ",",
-        .escape = "\\",
-        .quote = "\"",
-        .terminator = "\n",
-    });
-    defer table.deinit();
-    try table.parse(
-        \\a,b
-        \\c,d
-        \\
-    );
-
-    try expect(table.replaceValue(0, 0, ",2") == csv.TableError.IllegalCharacter);
-    try expect(table.replaceValue(0, 0, "2\n") == csv.TableError.IllegalCharacter);
-}
-
 test "Append row using Table.insertEmptyRow" {
     var table = csv.Table.init(allocator, csv.LexerSettings.default());
     defer table.deinit();
@@ -645,4 +627,45 @@ test "Iterate all valid fixtures" {
             return err;
         };
     }
+}
+
+test "Replace table field with value containing delimiter" {
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
+    defer table.deinit();
+    try table.parse(
+        \\id,letter
+        \\0,a
+    );
+
+    try table.replaceValue(1, 1, "example, word");
+
+    const exported: []const u8 = try table.exportCSV(allocator);
+    defer allocator.free(exported);
+    const expected_csv =
+        \\id,letter
+        \\0,"example, word"
+        \\
+    ;
+    try expectEqualString(expected_csv, exported);
+}
+
+test "Replace table field with value containing terminator" {
+    var table = csv.Table.init(allocator, csv.LexerSettings.default());
+    defer table.deinit();
+    try table.parse(
+        \\id,letter
+        \\0,a
+    );
+
+    try table.replaceValue(1, 1, "example\nword");
+
+    const exported: []const u8 = try table.exportCSV(allocator);
+    defer allocator.free(exported);
+    const expected_csv =
+        \\id,letter
+        \\0,"example
+        \\word"
+        \\
+    ;
+    try expectEqualString(expected_csv, exported);
 }

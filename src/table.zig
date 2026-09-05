@@ -9,7 +9,6 @@ const ParserError = parser.ParserError;
 /// Errors that may return from struct Table
 pub const TableError = error{
     ColumnNotFound,
-    IllegalCharacter,
     InconsistentRowLength,
     OutOfMemory,
     RowNotFound,
@@ -156,8 +155,6 @@ pub const Table = struct {
         if (row_index >= self.data.items.len) return TableError.RowNotFound;
         if (self.expected_column_count == null) return TableError.ColumnNotFound;
         if (column_index >= (self.expected_column_count orelse 0)) return TableError.ColumnNotFound;
-        if (std.mem.indexOf(u8, new_value, self.settings.delimiter) != null) return TableError.IllegalCharacter;
-        if (std.mem.indexOf(u8, new_value, self.settings.terminator) != null) return TableError.IllegalCharacter;
         self.allocator.free(self.data.items[row_index].items[column_index]);
         self.data.items[row_index].items[column_index] = try self.allocator.dupe(u8, new_value);
     }
