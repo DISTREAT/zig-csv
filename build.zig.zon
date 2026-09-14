@@ -14,6 +14,6 @@
         "src/root.zig",
         "src/schema.zig",
         "src/table.zig",
-        "src/tests/fixtures/.gitempty",
+        "src/tests/fixtures/.dirempty",
     },
 }
