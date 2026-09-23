@@ -1,6 +1,5 @@
 const std = @import("std");
 const csv = @import("zig_csv");
-const fixtures = @import("fixtures").fixtures;
 const expect = std.testing.expect;
 const expectEqualString = std.testing.expectEqualStrings;
 const allocator = std.testing.allocator;
@@ -613,17 +612,39 @@ test "Handle custom escape character in exported CSV" {
 }
 
 test "Iterate all valid fixtures" {
-    inline for (fixtures) |fixture| {
+    inline for (.{
+        "fixtures/acs2012_5yr_population.csv",
+        "fixtures/census2000_geo_schema.csv",
+        "fixtures/datagov_fy10_edu_recp_by_state.csv",
+        "fixtures/determination.csv",
+        "fixtures/determination_schema.csv",
+        "fixtures/fy09_edu_recipients_by_state.csv",
+        "fixtures/ilgeo2010_excerpt.csv",
+        "fixtures/iris.csv",
+        "fixtures/irismeta.csv",
+        "fixtures/ks_1033_data.csv",
+        "fixtures/sample-edge-cases.csv",
+        "fixtures/sample-quoted.csv",
+        "fixtures/sheetsxls_converted.csv",
+        "fixtures/test_geo.csv",
+        "fixtures/test_geojson.csv",
+        "fixtures/testdbf_converted.csv",
+        "fixtures/testfixed_converted.csv",
+        "fixtures/testjson_converted.csv",
+        "fixtures/testjson_nested_converted.csv",
+        "fixtures/testxls_converted.csv",
+    }) |fixture_path| {
+        const fixture_data = @embedFile(fixture_path);
         var table = csv.Table.init(allocator, csv.LexerSettings.default());
         defer table.deinit();
-        table.parse(fixture.data) catch |err| {
-            std.debug.print("Fixture: {s}\n", .{fixture.name});
+        table.parse(fixture_data) catch |err| {
+            std.debug.print("Fixture: {s}\n", .{fixture_path});
             return err;
         };
         const exported: []const u8 = try table.exportCSV(allocator);
         defer allocator.free(exported);
-        expectEqualString(fixture.data, exported) catch |err| {
-            std.debug.print("Fixture: {s}\n", .{fixture.name});
+        expectEqualString(fixture_data, exported) catch |err| {
+            std.debug.print("Fixture: {s}\n", .{fixture_path});
             return err;
         };
     }
